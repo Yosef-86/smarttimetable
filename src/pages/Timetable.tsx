@@ -358,10 +358,22 @@ const Timetable = () => {
             // Extract time range (e.g., "8:00 - 9:30" or "8:00- 9:30")
             const timeMatch = cellText.match(/^(\d{1,2}):?(\d{2})?\s*-\s*(\d{1,2}):?(\d{2})?/);
             if (!timeMatch) return;
-            const startHour = parseInt(timeMatch[1]);
+            let startHour = parseInt(timeMatch[1]);
             const startMin = parseInt(timeMatch[2] || '0');
-            const endHour = parseInt(timeMatch[3]);
+            let endHour = parseInt(timeMatch[3]);
             const endMin = parseInt(timeMatch[4] || '0');
+
+            // Apply AM/PM logic: times >= 12:00 are PM, otherwise AM
+            // Convert to 24-hour format for proper calculation
+            if (startHour < 12 && startHour < endHour && endHour >= 12) {
+              // If start is before 12 and end is 12 or after, keep as is
+            } else if (startHour >= 12 && endHour < 12) {
+              // If start is 12+ and end is less than 12, end is PM (add 12)
+              endHour += 12;
+            } else if (startHour < 12 && endHour < 12 && startHour > endHour) {
+              // If both are less than 12 but start > end, end is PM
+              endHour += 12;
+            }
 
             // Calculate duration in 30-minute blocks
             const startMinutes = startHour * 60 + startMin;
