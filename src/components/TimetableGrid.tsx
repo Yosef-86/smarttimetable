@@ -140,7 +140,7 @@ export const TimetableGrid = ({
         <div className="flex-1 overflow-x-auto print:overflow-visible">
           <div className="min-w-max">
             {/* Rooms Header */}
-            <div className="grid border-b-2 border-border bg-muted/50 h-[42px]" style={{ gridTemplateColumns: `repeat(${Math.max(1, rooms.length)}, 160px) 60px` }}>
+            <div className="grid border-b-2 border-border bg-muted/50 h-[42px]" style={{ gridTemplateColumns: `repeat(${rooms.length}, 160px) 60px` }}>
               {rooms.map(room => (
                 <div 
                   key={room} 
@@ -233,7 +233,7 @@ export const TimetableGrid = ({
               <div 
                 className="grid w-full" 
                 style={{ 
-                  gridTemplateColumns: `repeat(${Math.max(1, rooms.length)}, 160px) 60px`,
+                  gridTemplateColumns: `repeat(${rooms.length}, 160px) 60px`,
                   gridTemplateRows: `repeat(${TIME_SLOTS.length - 1}, 32px)`,
                   gridAutoFlow: 'dense'
                 }}
@@ -393,7 +393,7 @@ export const TimetableGrid = ({
                   <div 
                     key={`empty-${slotIndex}`}
                     className="border-b-2 border-border"
-                    style={{ gridRow: slotIndex + 1, gridColumn: Math.max(1, rooms.length) + 1 }}
+                    style={{ gridRow: slotIndex + 1, gridColumn: rooms.length + 1 }}
                   />
                 ))}
               </div>
