@@ -26,9 +26,12 @@ interface TileSidebarProps {
     durationHours: number;
     durationMinutes: number;
     color: string;
+    subjectType: 'Lec' | 'Lab';
+    labType: 'Kitchen Laboratory' | 'Computer Laboratory';
   };
   setNewTile: (tile: any) => void;
   onAddTile: () => void;
+  onEditSidebarTile?: (tile: CourseTile) => void;
 }
 export const TileSidebar = ({
   tiles,
@@ -43,7 +46,8 @@ export const TileSidebar = ({
   setIsAddTileOpen,
   newTile,
   setNewTile,
-  onAddTile
+  onAddTile,
+  onEditSidebarTile
 }: TileSidebarProps) => {
   const teachers = useMemo(() => {
     const uniqueTeachers = Array.from(new Set(tiles.map(t => t.teacher).filter(Boolean)));
@@ -147,6 +151,38 @@ export const TileSidebar = ({
                 </div>
               </div>
               <div className="space-y-2">
+                <label className="text-sm font-medium">Subject Type</label>
+                <Select value={newTile.subjectType} onValueChange={(val: 'Lec' | 'Lab') => setNewTile((prev: any) => ({
+                  ...prev,
+                  subjectType: val
+                }))}>
+                  <SelectTrigger className="bg-background">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background">
+                    <SelectItem value="Lec">Lecture</SelectItem>
+                    <SelectItem value="Lab">Laboratory</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {newTile.subjectType === 'Lab' && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Laboratory Type</label>
+                  <Select value={newTile.labType} onValueChange={(val: 'Kitchen Laboratory' | 'Computer Laboratory') => setNewTile((prev: any) => ({
+                    ...prev,
+                    labType: val
+                  }))}>
+                    <SelectTrigger className="bg-background">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background">
+                      <SelectItem value="Computer Laboratory">Computer Laboratory</SelectItem>
+                      <SelectItem value="Kitchen Laboratory">Kitchen Laboratory</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div className="space-y-2">
                 <label className="text-sm font-medium">Color</label>
                 <div className="flex gap-2">
                   {['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'].map(color => <button key={color} className="w-8 h-8 rounded-full border-2 transition-all" style={{
@@ -219,12 +255,20 @@ export const TileSidebar = ({
         <div className="p-4 space-y-3">
           {filteredTiles.length === 0 ? <p className="text-sm text-muted-foreground text-center py-8">
               No courses match the selected filters
-            </p> : filteredTiles.map(tile => <div key={tile.id} draggable onDragStart={e => {
-          e.dataTransfer.setData("tileId", tile.id);
-          onDragStart(tile);
-        }} className="relative p-4 rounded-lg cursor-move hover:scale-105 transition-all shadow-md hover:shadow-lg border-2 border-transparent hover:border-primary/50" style={{
-          backgroundColor: tile.color
-        }}>
+            </p> : filteredTiles.map(tile => <div 
+              key={tile.id} 
+              draggable 
+              onDragStart={e => {
+                e.dataTransfer.setData("tileId", tile.id);
+                onDragStart(tile);
+              }} 
+              onDoubleClick={() => onEditSidebarTile?.(tile)}
+              className="relative p-4 rounded-lg cursor-move hover:scale-105 transition-all shadow-md hover:shadow-lg border-2 border-transparent hover:border-primary/50" 
+              style={{
+                backgroundColor: tile.color
+              }}
+              title="Double-click to edit"
+            >
                 <button
                   onClick={(e) => {
                     e.stopPropagation();

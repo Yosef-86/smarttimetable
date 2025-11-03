@@ -35,7 +35,9 @@ const Timetable = () => {
     teacher: "",
     durationHours: 1,
     durationMinutes: 30,
-    color: "#3b82f6"
+    color: "#3b82f6",
+    subjectType: "Lec" as 'Lec' | 'Lab',
+    labType: "Computer Laboratory" as 'Kitchen Laboratory' | 'Computer Laboratory'
   });
   const [isEditTileOpen, setIsEditTileOpen] = useState(false);
   const [editingTile, setEditingTile] = useState<PlacedTile | null>(null);
@@ -45,7 +47,9 @@ const Timetable = () => {
     teacher: "",
     startTime: "",
     endTime: "",
-    color: ""
+    color: "",
+    subjectType: "Lec" as 'Lec' | 'Lab',
+    labType: "Computer Laboratory" as 'Kitchen Laboratory' | 'Computer Laboratory'
   });
 
   // Check authentication
@@ -218,22 +222,33 @@ const Timetable = () => {
       }
     }
 
-    // Check for room type compatibility (Lab courses must be in ComLab rooms)
-    const isLabCourse = /\(lab\)/i.test(draggingTile.courseName);
+    // Check for room type compatibility based on subject type and lab type
+    const isLabCourse = draggingTile.subjectType === 'Lab' || /\(lab\)/i.test(draggingTile.courseName);
     const isComLabRoom = /^CL\d+$|ComLab/i.test(room);
+    const isKitchenLabRoom = /^KL\d+$|Kitchen|KitchenLab/i.test(room);
     
-    if (isLabCourse && !isComLabRoom) {
-      toast.error("Lab courses can only be placed in ComLab rooms (CL1, CL2, etc.)");
-      setDraggingTile(null);
-      setIsDragging(false);
-      return;
-    }
-    
-    if (!isLabCourse && isComLabRoom) {
-      toast.error("ComLab rooms are reserved for Lab courses only");
-      setDraggingTile(null);
-      setIsDragging(false);
-      return;
+    if (isLabCourse) {
+      // Lab courses - check specific lab type
+      if (draggingTile.labType === 'Computer Laboratory' && !isComLabRoom) {
+        toast.error("Computer Laboratory courses can only be placed in ComLab rooms (CL1, CL2, etc.)");
+        setDraggingTile(null);
+        setIsDragging(false);
+        return;
+      }
+      if (draggingTile.labType === 'Kitchen Laboratory' && !isKitchenLabRoom) {
+        toast.error("Kitchen Laboratory courses can only be placed in Kitchen Lab rooms (KL1, KL2, etc.)");
+        setDraggingTile(null);
+        setIsDragging(false);
+        return;
+      }
+    } else {
+      // Non-lab courses cannot be in lab rooms
+      if (isComLabRoom || isKitchenLabRoom) {
+        toast.error("Laboratory rooms are reserved for Lab courses only");
+        setDraggingTile(null);
+        setIsDragging(false);
+        return;
+      }
     }
 
     const existingTile = placedTiles.find(t => t.id === draggingTile.id);
@@ -513,7 +528,9 @@ const Timetable = () => {
       startTime: "08:00", // Placeholder
       endTime: "09:30", // Placeholder
       duration,
-      color: newTile.color
+      color: newTile.color,
+      subjectType: newTile.subjectType,
+      labType: newTile.labType
     };
     setAvailableTiles(prev => [...prev, tile]);
 
@@ -529,39 +546,93 @@ const Timetable = () => {
       teacher: "",
       durationHours: 1,
       durationMinutes: 30,
-      color: "#3b82f6"
+      color: "#3b82f6",
+      subjectType: "Lec",
+      labType: "Computer Laboratory"
     });
     setIsAddTileOpen(false);
   };
-  const handleEditTileOpen = (tile: PlacedTile) => {
-    setEditingTile(tile);
+  const handleEditTileOpen = (tile: PlacedTile | CourseTile) => {
+    // Check if it's a sidebar tile (has no day/room/slotIndex)
+    const isSidebarTile = !('day' in tile);
     
-    // Calculate actual time based on slotIndex (8:00 AM = slot 0, each slot = 30 mins)
-    const startMinutes = 480 + (tile.slotIndex * 30); // 480 = 8:00 AM in minutes
-    const endMinutes = startMinutes + (tile.duration * 30);
-    
-    const startHour = Math.floor(startMinutes / 60);
-    const startMin = startMinutes % 60;
-    const endHour = Math.floor(endMinutes / 60);
-    const endMin = endMinutes % 60;
-    
-    const actualStartTime = `${String(startHour).padStart(2, '0')}:${String(startMin).padStart(2, '0')}`;
-    const actualEndTime = `${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}`;
-    
-    setEditTileData({
-      courseName: tile.courseName,
-      section: tile.section,
-      teacher: tile.teacher,
-      startTime: actualStartTime,
-      endTime: actualEndTime,
-      color: tile.color
-    });
-    setIsEditTileOpen(true);
+    if (isSidebarTile) {
+      // For sidebar tiles, use their existing time
+      const courseTile = tile as CourseTile;
+      setEditingTile(null); // No placed tile, editing sidebar tile directly
+      setEditTileData({
+        courseName: courseTile.courseName,
+        section: courseTile.section,
+        teacher: courseTile.teacher,
+        startTime: courseTile.startTime,
+        endTime: courseTile.endTime,
+        color: courseTile.color,
+        subjectType: courseTile.subjectType || 'Lec',
+        labType: courseTile.labType || 'Computer Laboratory'
+      });
+      setIsEditTileOpen(true);
+      // Store the ID to update later
+      setEditingTile({ ...courseTile, day: '', room: '', slotIndex: 0 } as any);
+    } else {
+      // For placed tiles
+      const placedTile = tile as PlacedTile;
+      setEditingTile(placedTile);
+      
+      // Calculate actual time based on slotIndex (8:00 AM = slot 0, each slot = 30 mins)
+      const startMinutes = 480 + (placedTile.slotIndex * 30); // 480 = 8:00 AM in minutes
+      const endMinutes = startMinutes + (placedTile.duration * 30);
+      
+      const startHour = Math.floor(startMinutes / 60);
+      const startMin = startMinutes % 60;
+      const endHour = Math.floor(endMinutes / 60);
+      const endMin = endMinutes % 60;
+      
+      const actualStartTime = `${String(startHour).padStart(2, '0')}:${String(startMin).padStart(2, '0')}`;
+      const actualEndTime = `${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}`;
+      
+      setEditTileData({
+        courseName: placedTile.courseName,
+        section: placedTile.section,
+        teacher: placedTile.teacher,
+        startTime: actualStartTime,
+        endTime: actualEndTime,
+        color: placedTile.color,
+        subjectType: placedTile.subjectType || 'Lec',
+        labType: placedTile.labType || 'Computer Laboratory'
+      });
+      setIsEditTileOpen(true);
+    }
   };
   const handleSaveEditTile = () => {
     if (!editingTile) return;
     if (!editTileData.courseName.trim()) {
       toast.error("Course name is required");
+      return;
+    }
+    
+    // Check if editing a sidebar tile (no day property means sidebar tile)
+    const isSidebarTile = !editingTile.day;
+    
+    if (isSidebarTile) {
+      // Update sidebar tile
+      const updatedTiles = availableTiles.map(t => 
+        t.id === editingTile.id 
+          ? {
+              ...t,
+              courseName: editTileData.courseName.trim(),
+              section: editTileData.section.trim(),
+              teacher: editTileData.teacher.trim(),
+              color: editTileData.color,
+              subjectType: editTileData.subjectType,
+              labType: editTileData.labType
+            }
+          : t
+      );
+      setAvailableTiles(updatedTiles);
+      localStorage.setItem("uploadedTiles", JSON.stringify(updatedTiles));
+      setIsEditTileOpen(false);
+      setEditingTile(null);
+      toast.success("Tile updated successfully");
       return;
     }
 
@@ -600,7 +671,9 @@ const Timetable = () => {
         endTime: `${String(remainingEndHour).padStart(2, '0')}:${String(remainingEndMin).padStart(2, '0')}`,
         duration: remainingDuration,
         color: editTileData.color,
-        splitFromId: editingTile.id // Track which tile this was split from
+        splitFromId: editingTile.id, // Track which tile this was split from
+        subjectType: editTileData.subjectType,
+        labType: editTileData.labType
       };
 
       // Add to available tiles
@@ -628,7 +701,9 @@ const Timetable = () => {
       endTime: editTileData.endTime,
       duration: newDuration,
       color: editTileData.color,
-      originalDuration: t.originalDuration || oldDuration // Store original duration
+      originalDuration: t.originalDuration || oldDuration, // Store original duration
+      subjectType: editTileData.subjectType,
+      labType: editTileData.labType
     } : t));
     setIsEditTileOpen(false);
     setEditingTile(null);
@@ -729,7 +804,7 @@ const Timetable = () => {
 
       {/* Main Content */}
       <div className="flex h-[calc(100vh-160px)]">
-        <TileSidebar tiles={availableTiles} onDragStart={handleDragStart} onDeleteTile={handleDeleteTile} onDeleteAllTiles={handleDeleteAllTiles} selectedTeacher={selectedTeacher} onTeacherChange={setSelectedTeacher} selectedSection={selectedSection} onSectionChange={setSelectedSection} isAddTileOpen={isAddTileOpen} setIsAddTileOpen={setIsAddTileOpen} newTile={newTile} setNewTile={setNewTile} onAddTile={handleAddTile} />
+        <TileSidebar tiles={availableTiles} onDragStart={handleDragStart} onDeleteTile={handleDeleteTile} onDeleteAllTiles={handleDeleteAllTiles} selectedTeacher={selectedTeacher} onTeacherChange={setSelectedTeacher} selectedSection={selectedSection} onSectionChange={setSelectedSection} isAddTileOpen={isAddTileOpen} setIsAddTileOpen={setIsAddTileOpen} newTile={newTile} setNewTile={setNewTile} onAddTile={handleAddTile} onEditSidebarTile={handleEditTileOpen} />
         <div className="flex-1 p-6 overflow-auto">
           <TimetableGrid day={currentDay} rooms={rooms} placedTiles={placedTiles} onDropTile={handleDropTile} onRemoveTile={handleRemoveTile} onAddRoom={handleAddRoom} onEditRoom={handleEditRoom} onDeleteRoom={handleDeleteRoom} isDragging={isDragging} draggingTile={draggingTile} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onEditTile={handleEditTileOpen} />
         </div>
@@ -782,6 +857,38 @@ const Timetable = () => {
               }))} />
               </div>
             </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Subject Type</label>
+              <Select value={editTileData.subjectType} onValueChange={(val: 'Lec' | 'Lab') => setEditTileData(prev => ({
+                ...prev,
+                subjectType: val
+              }))}>
+                <SelectTrigger className="bg-background">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-background">
+                  <SelectItem value="Lec">Lecture</SelectItem>
+                  <SelectItem value="Lab">Laboratory</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {editTileData.subjectType === 'Lab' && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Laboratory Type</label>
+                <Select value={editTileData.labType} onValueChange={(val: 'Kitchen Laboratory' | 'Computer Laboratory') => setEditTileData(prev => ({
+                  ...prev,
+                  labType: val
+                }))}>
+                  <SelectTrigger className="bg-background">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background">
+                    <SelectItem value="Computer Laboratory">Computer Laboratory</SelectItem>
+                    <SelectItem value="Kitchen Laboratory">Kitchen Laboratory</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <label className="text-sm font-medium">Color</label>
               <div className="flex gap-2">

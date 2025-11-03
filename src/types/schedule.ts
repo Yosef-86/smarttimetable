@@ -9,6 +9,8 @@ export interface CourseTile {
   color: string;
   splitFromId?: string; // ID of the tile this was split from
   originalDuration?: number; // Original duration before splitting
+  subjectType?: 'Lec' | 'Lab'; // Lecture or Laboratory
+  labType?: 'Kitchen Laboratory' | 'Computer Laboratory'; // Type of lab if subjectType is Lab
 }
 
 export interface TimeSlot {
