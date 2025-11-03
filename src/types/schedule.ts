@@ -1,0 +1,32 @@
+export interface CourseTile {
+  id: string;
+  courseName: string;
+  section: string;
+  teacher: string;
+  startTime: string;
+  endTime: string;
+  duration: number; // in 30-minute blocks
+  color: string;
+  splitFromId?: string; // ID of the tile this was split from
+  originalDuration?: number; // Original duration before splitting
+}
+
+export interface TimeSlot {
+  time: string;
+  hour: number;
+  minute: number;
+}
+
+export interface PlacedTile extends CourseTile {
+  day: string;
+  room: string;
+  slotIndex: number;
+}
+
+export interface SavedSchedule {
+  id: string;
+  name: string;
+  type: 'teacher' | 'section' | 'room';
+  tiles: PlacedTile[];
+  createdAt: Date;
+}

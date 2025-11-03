@@ -1,0 +1,771 @@
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { TimetableGrid } from "@/components/TimetableGrid";
+import { TileSidebar } from "@/components/TileSidebar";
+import { CourseTile, PlacedTile } from "@/types/schedule";
+import { SAMPLE_TILES, DAYS, ROOMS as DEFAULT_ROOMS } from "@/utils/scheduleData";
+import { ArrowLeft, Save, Upload, Plus, User, LogOut, Settings } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import * as XLSX from 'xlsx';
+import { Input } from "@/components/ui/input";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { supabase } from "@/integrations/supabase/client";
+import { AccountSettings } from "@/components/AccountSettings";
+
+const Timetable = () => {
+  const navigate = useNavigate();
+  const [userEmail, setUserEmail] = useState<string>("");
+  const [showAccountSettings, setShowAccountSettings] = useState(false);
+  const [currentDay, setCurrentDay] = useState(DAYS[0]);
+  const [rooms, setRooms] = useState<string[]>(DEFAULT_ROOMS);
+  const [availableTiles, setAvailableTiles] = useState<CourseTile[]>([]);
+  const [placedTiles, setPlacedTiles] = useState<PlacedTile[]>([]);
+  const [draggingTile, setDraggingTile] = useState<CourseTile | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [selectedTeacher, setSelectedTeacher] = useState<string>("all");
+  const [selectedSection, setSelectedSection] = useState<string>("all");
+  const [isAddTileOpen, setIsAddTileOpen] = useState(false);
+  const [newTile, setNewTile] = useState({
+    courseName: "",
+    section: "",
+    teacher: "",
+    durationHours: 1,
+    durationMinutes: 30,
+    color: "#3b82f6"
+  });
+  const [isEditTileOpen, setIsEditTileOpen] = useState(false);
+  const [editingTile, setEditingTile] = useState<PlacedTile | null>(null);
+  const [editTileData, setEditTileData] = useState({
+    courseName: "",
+    section: "",
+    teacher: "",
+    startTime: "",
+    endTime: "",
+    color: ""
+  });
+
+  // Check authentication
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        navigate("/auth");
+      } else {
+        setUserEmail(session.user.email || "");
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) {
+        navigate("/auth");
+      } else {
+        setUserEmail(session.user.email || "");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      toast.success("Logged out successfully");
+      navigate("/auth");
+    } catch (error) {
+      toast.error("Error logging out");
+    }
+  };
+
+  // Load data from localStorage on mount
+  useEffect(() => {
+    const savedTiles = localStorage.getItem("uploadedTiles");
+    if (savedTiles) {
+      try {
+        const tiles = JSON.parse(savedTiles);
+        setAvailableTiles(tiles);
+      } catch (error) {
+        console.error("Failed to load saved tiles:", error);
+      }
+    }
+    const savedPlacedTiles = localStorage.getItem("placedTiles");
+    if (savedPlacedTiles) {
+      try {
+        const tiles = JSON.parse(savedPlacedTiles);
+        setPlacedTiles(tiles);
+      } catch (error) {
+        console.error("Failed to load placed tiles:", error);
+      }
+    }
+    const savedRooms = localStorage.getItem("customRooms");
+    if (savedRooms) {
+      try {
+        const roomsList = JSON.parse(savedRooms);
+        setRooms(roomsList);
+      } catch (error) {
+        console.error("Failed to load rooms:", error);
+      }
+    }
+  }, []);
+
+  // Save placed tiles whenever they change
+  useEffect(() => {
+    if (placedTiles.length > 0) {
+      localStorage.setItem("placedTiles", JSON.stringify(placedTiles));
+    }
+  }, [placedTiles]);
+
+  // Save rooms whenever they change
+  useEffect(() => {
+    if (rooms.length > 0) {
+      localStorage.setItem("customRooms", JSON.stringify(rooms));
+    }
+  }, [rooms]);
+  const handleDragStart = (tile: CourseTile) => {
+    setDraggingTile(tile);
+    setIsDragging(true);
+  };
+  const handleDragEnd = () => {
+    setDraggingTile(null);
+    setIsDragging(false);
+  };
+
+  const handleDeleteTile = (tileId: string) => {
+    setAvailableTiles(prev => {
+      const updatedTiles = prev.filter(t => t.id !== tileId);
+      localStorage.setItem("uploadedTiles", JSON.stringify(updatedTiles));
+      return updatedTiles;
+    });
+    toast.success("Tile deleted");
+  };
+
+  const handleDeleteAllTiles = () => {
+    setAvailableTiles([]);
+    localStorage.setItem("uploadedTiles", JSON.stringify([]));
+    toast.success("All tiles deleted");
+  };
+
+  const handleDropTile = (room: string, slotIndex: number) => {
+    if (!draggingTile) return;
+
+    // Check if there's enough space for the tile duration
+    const maxSlots = 28; // 8 AM to 10 PM = 14 hours = 28 slots of 30 mins
+    if (slotIndex + draggingTile.duration > maxSlots) {
+      toast.error("Not enough time slots for this course duration");
+      setDraggingTile(null);
+      setIsDragging(false);
+      return;
+    }
+
+    // Check for overlapping tiles in the same room and day
+    const hasRoomOverlap = placedTiles.some(t => {
+      if (t.id === draggingTile.id) return false; // Allow moving the same tile
+      if (t.room !== room || t.day !== currentDay) return false;
+
+      // Check if the new tile would overlap with existing tile
+      const newTileEnd = slotIndex + draggingTile.duration;
+      const existingTileEnd = t.slotIndex + t.duration;
+      return slotIndex >= t.slotIndex && slotIndex < existingTileEnd || newTileEnd > t.slotIndex && newTileEnd <= existingTileEnd || slotIndex <= t.slotIndex && newTileEnd >= existingTileEnd;
+    });
+    if (hasRoomOverlap) {
+      toast.error("This time slot is already occupied");
+      setDraggingTile(null);
+      setIsDragging(false);
+      return;
+    }
+
+    // Check for teacher conflicts across different rooms on the same day
+    if (draggingTile.teacher && draggingTile.teacher.trim() !== "") {
+      const hasTeacherConflict = placedTiles.some(t => {
+        if (t.id === draggingTile.id) return false; // Allow moving the same tile
+        if (t.day !== currentDay) return false; // Only check same day
+        if (!t.teacher || t.teacher.trim() === "") return false; // Skip if no teacher assigned
+        if (t.teacher !== draggingTile.teacher) return false; // Only check same teacher
+
+        // Check if the new tile would overlap with existing tile's time
+        const newTileEnd = slotIndex + draggingTile.duration;
+        const existingTileEnd = t.slotIndex + t.duration;
+        return slotIndex >= t.slotIndex && slotIndex < existingTileEnd || newTileEnd > t.slotIndex && newTileEnd <= existingTileEnd || slotIndex <= t.slotIndex && newTileEnd >= existingTileEnd;
+      });
+      if (hasTeacherConflict) {
+        toast.error(`Teacher ${draggingTile.teacher} already has a class at this time`);
+        setDraggingTile(null);
+        setIsDragging(false);
+        return;
+      }
+    }
+    const existingTile = placedTiles.find(t => t.id === draggingTile.id);
+    if (existingTile) {
+      // Move existing tile
+      setPlacedTiles(prev => prev.map(t => t.id === draggingTile.id ? {
+        ...t,
+        room,
+        slotIndex,
+        day: currentDay
+      } : t));
+    } else {
+      // Place new tile
+      const newTile: PlacedTile = {
+        ...draggingTile,
+        day: currentDay,
+        room,
+        slotIndex
+      };
+      setPlacedTiles(prev => [...prev, newTile]);
+
+      // Remove from available tiles
+      const updatedAvailableTiles = availableTiles.filter(t => t.id !== draggingTile.id);
+      setAvailableTiles(updatedAvailableTiles);
+
+      // Update localStorage
+      localStorage.setItem("uploadedTiles", JSON.stringify(updatedAvailableTiles));
+    }
+    setDraggingTile(null);
+    setIsDragging(false);
+    toast.success("Tile placed successfully!");
+  };
+  const handleRemoveTile = (tileId: string) => {
+    const tile = placedTiles.find(t => t.id === tileId);
+    if (!tile) return;
+    setPlacedTiles(prev => prev.filter(t => t.id !== tileId));
+
+    // Add back to available tiles
+    const updatedAvailableTiles = [...availableTiles, tile];
+    setAvailableTiles(updatedAvailableTiles);
+
+    // Update localStorage
+    localStorage.setItem("uploadedTiles", JSON.stringify(updatedAvailableTiles));
+    toast.info("Tile removed from timetable");
+  };
+  const handleAddRoom = (roomName: string) => {
+    if (rooms.includes(roomName)) {
+      toast.error("Room already exists");
+      return;
+    }
+    setRooms(prev => [...prev, roomName]);
+    toast.success(`Room "${roomName}" added`);
+  };
+  const handleEditRoom = (oldRoom: string, newRoom: string) => {
+    if (oldRoom === newRoom) return;
+    if (rooms.includes(newRoom)) {
+      toast.error("Room name already exists");
+      return;
+    }
+    setRooms(prev => prev.map(r => r === oldRoom ? newRoom : r));
+    setPlacedTiles(prev => prev.map(t => t.room === oldRoom ? {
+      ...t,
+      room: newRoom
+    } : t));
+    toast.success(`Room renamed to "${newRoom}"`);
+  };
+  const handleDeleteRoom = (room: string) => {
+    const tilesInRoom = placedTiles.filter(t => t.room === room);
+    if (tilesInRoom.length > 0) {
+      toast.error("Cannot delete room with scheduled courses");
+      return;
+    }
+    setRooms(prev => prev.filter(r => r !== room));
+    toast.success(`Room "${room}" deleted`);
+  };
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const data = e.target?.result;
+        const workbook = XLSX.read(data, {
+          type: 'binary'
+        });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+          header: 1
+        });
+        const coursesMap = new Map<string, CourseTile>();
+        const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16'];
+        let colorIndex = 0;
+
+        // Parse the timetable format
+        jsonData.forEach((row: any, rowIndex) => {
+          if (rowIndex < 2 || !Array.isArray(row)) return; // Skip header rows
+
+          row.forEach((cell: any, colIndex) => {
+            if (!cell || typeof cell !== 'string' || colIndex === 0) return; // Skip time column and empty cells
+
+            // Parse cell format: "TIME RANGE COURSE_NAME SECTION TEACHER"
+            // Example: "8:00 - 9:30 CYBER SECURITY CS/ACT 201 J.DE GUZMAN"
+            const cellText = cell.toString().trim();
+            if (!cellText || cellText.length < 10) return;
+
+            // Extract time range (e.g., "8:00 - 9:30" or "8:00- 9:30")
+            const timeMatch = cellText.match(/^(\d{1,2}):?(\d{2})?\s*-\s*(\d{1,2}):?(\d{2})?/);
+            if (!timeMatch) return;
+            const startHour = parseInt(timeMatch[1]);
+            const startMin = parseInt(timeMatch[2] || '0');
+            const endHour = parseInt(timeMatch[3]);
+            const endMin = parseInt(timeMatch[4] || '0');
+
+            // Calculate duration in 30-minute blocks
+            const startMinutes = startHour * 60 + startMin;
+            const endMinutes = endHour * 60 + endMin;
+            const durationMinutes = endMinutes - startMinutes;
+            const duration = Math.max(1, Math.ceil(durationMinutes / 30)); // Ensure positive duration
+
+            // Remove time from the string to get course info
+            const courseInfo = cellText.replace(timeMatch[0], '').trim();
+
+            // Extract course name in quotes (e.g., "CYBER SECURITY")
+            const courseNameMatch = courseInfo.match(/"([^"]+)"/);
+            let courseName = '';
+            let remainingText = courseInfo;
+            if (courseNameMatch) {
+              courseName = courseNameMatch[1].replace(/\(LAB\)|\(LEC\)/gi, '').trim();
+              remainingText = courseInfo.replace(courseNameMatch[0], '').trim();
+            }
+
+            // Split remaining text to extract section and teacher
+            const parts = remainingText.split(/\s+/).filter(p => p.length > 0);
+            if (parts.length < 2) return;
+            let section = '';
+            let teacher = '';
+
+            // Find section pattern (e.g., "COE 101", "CS/ACT 201", "IT 101")
+            let sectionIndex = -1;
+            for (let i = 0; i < parts.length; i++) {
+              // Check if current part and next part form a section
+              const possibleSection = parts[i] + ' ' + (parts[i + 1] || '');
+              if (/^[A-Z\/]+\s+\d+/.test(possibleSection)) {
+                sectionIndex = i;
+                break;
+              }
+            }
+            if (sectionIndex >= 0 && sectionIndex + 1 < parts.length) {
+              // Section is two parts (e.g., "IT 101")
+              section = `${parts[sectionIndex]} ${parts[sectionIndex + 1]}`;
+
+              // Teacher is everything after section
+              const teacherParts = parts.slice(sectionIndex + 2);
+              const teacherRaw = teacherParts.join(' ').replace(/\(LAB\)|\(LEC\)/gi, '').trim();
+
+              // Format as "Initial. LastName"
+              const teacherMatch = teacherRaw.match(/([A-Z])\.?\s*([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+)*)/);
+              teacher = teacherMatch ? `${teacherMatch[1]}. ${teacherMatch[2]}` : teacherRaw;
+            }
+
+            // If course name wasn't in quotes, use first parts before section
+            if (!courseName && sectionIndex > 0) {
+              courseName = parts.slice(0, sectionIndex).join(' ').replace(/\(LAB\)|\(LEC\)/gi, '').trim();
+            }
+            if (!courseName) return;
+
+            // Create unique key for each course-section-teacher combination
+            const courseKey = `${courseName}_${section}_${teacher}`;
+            if (!coursesMap.has(courseKey)) {
+              coursesMap.set(courseKey, {
+                id: `course-${Date.now()}-${coursesMap.size}`,
+                courseName: courseName.replace(/\(LAB\)|\(LEC\)/gi, '').trim(),
+                section: section,
+                teacher: teacher,
+                startTime: `${String(startHour).padStart(2, '0')}:${String(startMin).padStart(2, '0')}`,
+                endTime: `${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}`,
+                duration: duration || 2,
+                color: colors[colorIndex % colors.length]
+              });
+              colorIndex++;
+            }
+          });
+        });
+        const tiles = Array.from(coursesMap.values());
+        setAvailableTiles(tiles);
+        // Save to localStorage for persistence
+        localStorage.setItem("uploadedTiles", JSON.stringify(tiles));
+        toast.success(`Loaded ${tiles.length} courses from Excel file`);
+      } catch (error) {
+        toast.error("Failed to parse Excel file. Please check the format.");
+        console.error(error);
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+  const handleSave = () => {
+    if (placedTiles.length === 0) {
+      toast.error("Please add some courses to the timetable first");
+      return;
+    }
+
+    // Store timetable data
+    localStorage.setItem("timetableData", JSON.stringify(placedTiles));
+
+    // Auto-save complete timetable as "room" type
+    const completeTimetable = {
+      id: `complete-${Date.now()}`,
+      name: "Complete Timetable",
+      type: 'room' as const,
+      tiles: placedTiles,
+      createdAt: new Date()
+    };
+
+    // Auto-save teacher schedules
+    const uniqueTeachers = Array.from(new Set(placedTiles.map(t => t.teacher).filter(t => t && t.trim() !== "")));
+    const teacherSchedules = uniqueTeachers.map(teacher => ({
+      id: `teacher-${teacher}-${Date.now()}`,
+      name: teacher,
+      type: 'teacher' as const,
+      tiles: placedTiles.filter(t => t.teacher === teacher),
+      createdAt: new Date()
+    }));
+
+    // Auto-save section schedules
+    const uniqueSections = Array.from(new Set(placedTiles.map(t => t.section).filter(s => s && s.trim() !== "")));
+    const sectionSchedules = uniqueSections.map(section => ({
+      id: `section-${section}-${Date.now()}`,
+      name: section,
+      type: 'section' as const,
+      tiles: placedTiles.filter(t => t.section === section),
+      createdAt: new Date()
+    }));
+
+    // Combine all schedules
+    const allSchedules = [completeTimetable, ...teacherSchedules, ...sectionSchedules];
+    localStorage.setItem("savedSchedules", JSON.stringify(allSchedules));
+    toast.success(`Timetable saved! ${teacherSchedules.length} teachers, ${sectionSchedules.length} sections`);
+  };
+  const handleReset = () => {
+    if (confirm("Are you sure you want to reset everything? This will return all placed tiles to the sidebar.")) {
+      // Return placed tiles to available tiles
+      setAvailableTiles(prev => [...prev, ...placedTiles]);
+
+      // Clear placed tiles and reset rooms
+      setPlacedTiles([]);
+      setRooms(DEFAULT_ROOMS);
+
+      // Clear localStorage
+      localStorage.removeItem("placedTiles");
+      localStorage.removeItem("customRooms");
+      localStorage.removeItem("timetableData");
+      toast.success("All tiles returned to sidebar!");
+    }
+  };
+  const handleAddTile = () => {
+    if (!newTile.courseName.trim()) {
+      toast.error("Course name is required");
+      return;
+    }
+
+    // Calculate duration from hours and minutes
+    const totalMinutes = (newTile.durationHours * 60) + newTile.durationMinutes;
+    if (totalMinutes <= 0) {
+      toast.error("Duration must be greater than 0");
+      return;
+    }
+    
+    const duration = Math.ceil(totalMinutes / 30); // Convert to 30-minute slots
+    
+    // Use placeholder times - actual time will be set when placed on grid
+    const tile: CourseTile = {
+      id: `tile-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      courseName: newTile.courseName.trim(),
+      section: newTile.section.trim(),
+      teacher: newTile.teacher.trim(),
+      startTime: "08:00", // Placeholder
+      endTime: "09:30", // Placeholder
+      duration,
+      color: newTile.color
+    };
+    setAvailableTiles(prev => [...prev, tile]);
+
+    // Update localStorage
+    const updatedTiles = [...availableTiles, tile];
+    localStorage.setItem("uploadedTiles", JSON.stringify(updatedTiles));
+    toast.success(`Tile "${tile.courseName}" added successfully`);
+
+    // Reset form
+    setNewTile({
+      courseName: "",
+      section: "",
+      teacher: "",
+      durationHours: 1,
+      durationMinutes: 30,
+      color: "#3b82f6"
+    });
+    setIsAddTileOpen(false);
+  };
+  const handleEditTileOpen = (tile: PlacedTile) => {
+    setEditingTile(tile);
+    
+    // Calculate actual time based on slotIndex (8:00 AM = slot 0, each slot = 30 mins)
+    const startMinutes = 480 + (tile.slotIndex * 30); // 480 = 8:00 AM in minutes
+    const endMinutes = startMinutes + (tile.duration * 30);
+    
+    const startHour = Math.floor(startMinutes / 60);
+    const startMin = startMinutes % 60;
+    const endHour = Math.floor(endMinutes / 60);
+    const endMin = endMinutes % 60;
+    
+    const actualStartTime = `${String(startHour).padStart(2, '0')}:${String(startMin).padStart(2, '0')}`;
+    const actualEndTime = `${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}`;
+    
+    setEditTileData({
+      courseName: tile.courseName,
+      section: tile.section,
+      teacher: tile.teacher,
+      startTime: actualStartTime,
+      endTime: actualEndTime,
+      color: tile.color
+    });
+    setIsEditTileOpen(true);
+  };
+  const handleSaveEditTile = () => {
+    if (!editingTile) return;
+    if (!editTileData.courseName.trim()) {
+      toast.error("Course name is required");
+      return;
+    }
+
+    // Calculate new duration from time range
+    const [newStartHour, newStartMin] = editTileData.startTime.split(':').map(Number);
+    const [newEndHour, newEndMin] = editTileData.endTime.split(':').map(Number);
+    const newStartMinutes = newStartHour * 60 + newStartMin;
+    const newEndMinutes = newEndHour * 60 + newEndMin;
+    const newDurationMinutes = newEndMinutes - newStartMinutes;
+    if (newDurationMinutes <= 0) {
+      toast.error("End time must be after start time");
+      return;
+    }
+    const newDuration = Math.ceil(newDurationMinutes / 30);
+    const oldDuration = editingTile.duration;
+    const originalDuration = editingTile.originalDuration || oldDuration;
+
+    // Check if duration was reduced
+    if (newDuration < oldDuration) {
+      // Calculate remaining time
+      const remainingDuration = oldDuration - newDuration;
+      const remainingStartMinutes = newEndMinutes;
+      const remainingEndMinutes = remainingStartMinutes + remainingDuration * 30;
+      const remainingStartHour = Math.floor(remainingStartMinutes / 60);
+      const remainingStartMin = remainingStartMinutes % 60;
+      const remainingEndHour = Math.floor(remainingEndMinutes / 60);
+      const remainingEndMin = remainingEndMinutes % 60;
+
+      // Create new tile with remaining time
+      const remainingTile: CourseTile = {
+        id: `tile-${Date.now()}-remaining`,
+        courseName: editTileData.courseName.trim(),
+        section: editTileData.section.trim(),
+        teacher: editTileData.teacher.trim(),
+        startTime: `${String(remainingStartHour).padStart(2, '0')}:${String(remainingStartMin).padStart(2, '0')}`,
+        endTime: `${String(remainingEndHour).padStart(2, '0')}:${String(remainingEndMin).padStart(2, '0')}`,
+        duration: remainingDuration,
+        color: editTileData.color,
+        splitFromId: editingTile.id // Track which tile this was split from
+      };
+
+      // Add to available tiles
+      const updatedAvailableTiles = [...availableTiles, remainingTile];
+      setAvailableTiles(updatedAvailableTiles);
+      localStorage.setItem("uploadedTiles", JSON.stringify(updatedAvailableTiles));
+      toast.success(`Tile updated! Remaining ${remainingDuration * 30} minutes sent to sidebar`);
+    } else if (newDuration >= originalDuration) {
+      // Duration restored to original or larger - remove any split tiles
+      const updatedAvailableTiles = availableTiles.filter(t => t.splitFromId !== editingTile.id);
+      if (updatedAvailableTiles.length < availableTiles.length) {
+        setAvailableTiles(updatedAvailableTiles);
+        localStorage.setItem("uploadedTiles", JSON.stringify(updatedAvailableTiles));
+        toast.success("Tile restored to full duration! Split tiles removed from sidebar");
+      }
+    }
+
+    // Update the placed tile
+    setPlacedTiles(prev => prev.map(t => t.id === editingTile.id ? {
+      ...t,
+      courseName: editTileData.courseName.trim(),
+      section: editTileData.section.trim(),
+      teacher: editTileData.teacher.trim(),
+      startTime: editTileData.startTime,
+      endTime: editTileData.endTime,
+      duration: newDuration,
+      color: editTileData.color,
+      originalDuration: t.originalDuration || oldDuration // Store original duration
+    } : t));
+    setIsEditTileOpen(false);
+    setEditingTile(null);
+    if (newDuration >= oldDuration && newDuration < originalDuration) {
+      toast.success("Tile updated successfully");
+    }
+  };
+
+  // Get unique teachers and sections from placed tiles
+  const uniqueTeachers = Array.from(new Set(placedTiles.map(t => t.teacher))).sort();
+  const uniqueSections = Array.from(new Set(placedTiles.map(t => t.section))).sort();
+  return <div className="min-h-screen bg-background">
+      {/* Header */}
+      <div className="border-b border-border bg-card shadow-sm">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="sm" onClick={() => navigate("/")}>
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back
+              </Button>
+              <h1 className="text-2xl font-bold">Timetable Creator</h1>
+            </div>
+            <div className="flex items-center gap-3">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <User className="w-5 h-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                    {userEmail}
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setShowAccountSettings(true)}>
+                    <Settings className="w-4 h-4 mr-2" />
+                    Account Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <ThemeToggle />
+              <label htmlFor="excel-upload">
+                <Button variant="outline" className="gap-2" asChild>
+                  <span className="cursor-pointer">
+                    <Upload className="w-4 h-4" />
+                    Upload Excel
+                  </span>
+                </Button>
+              </label>
+              <Input id="excel-upload" type="file" accept=".xlsx,.xls" onChange={handleFileUpload} className="hidden" />
+              <Button variant="outline" className="gap-2" onClick={handleReset}>
+                Reset
+              </Button>
+              <Button variant="outline" className="gap-2" onClick={() => navigate("/saved-schedules")}>
+                View Saved Schedules
+              </Button>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button className="gap-2">
+                    <Save className="w-4 h-4" />
+                    Save Timetable
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Save Complete Timetable</DialogTitle>
+                    <DialogDescription>
+                      This will save the entire timetable for all teachers and sections.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <Button onClick={handleSave} className="w-full">
+                    Save Complete Timetable
+                  </Button>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Day Selector */}
+      <div className="border-b border-border bg-muted/30">
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex gap-2 overflow-x-auto">
+            {DAYS.map(day => <Button key={day} variant={currentDay === day ? "default" : "outline"} onClick={() => setCurrentDay(day)} className="whitespace-nowrap">
+                {day}
+              </Button>)}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex h-[calc(100vh-160px)]">
+        <TileSidebar tiles={availableTiles} onDragStart={handleDragStart} onDeleteTile={handleDeleteTile} onDeleteAllTiles={handleDeleteAllTiles} selectedTeacher={selectedTeacher} onTeacherChange={setSelectedTeacher} selectedSection={selectedSection} onSectionChange={setSelectedSection} isAddTileOpen={isAddTileOpen} setIsAddTileOpen={setIsAddTileOpen} newTile={newTile} setNewTile={setNewTile} onAddTile={handleAddTile} />
+        <div className="flex-1 p-6 overflow-auto">
+          <TimetableGrid day={currentDay} rooms={rooms} placedTiles={placedTiles} onDropTile={handleDropTile} onRemoveTile={handleRemoveTile} onAddRoom={handleAddRoom} onEditRoom={handleEditRoom} onDeleteRoom={handleDeleteRoom} isDragging={isDragging} draggingTile={draggingTile} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onEditTile={handleEditTileOpen} />
+        </div>
+      </div>
+
+      {/* Edit Tile Dialog */}
+      <Dialog open={isEditTileOpen} onOpenChange={setIsEditTileOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Course Tile</DialogTitle>
+            <DialogDescription>
+              Modify the course details. Reducing duration will send remaining time to sidebar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Subject Name</label>
+              <Input value={editTileData.courseName} onChange={e => setEditTileData(prev => ({
+              ...prev,
+              courseName: e.target.value
+            }))} placeholder="e.g., CYBER SECURITY" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Section</label>
+              <Input value={editTileData.section} onChange={e => setEditTileData(prev => ({
+              ...prev,
+              section: e.target.value
+            }))} placeholder="e.g., CS 201" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Teacher</label>
+              <Input value={editTileData.teacher} onChange={e => setEditTileData(prev => ({
+              ...prev,
+              teacher: e.target.value
+            }))} placeholder="e.g., J. DE GUZMAN" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Start Time</label>
+                <Input type="time" value={editTileData.startTime} onChange={e => setEditTileData(prev => ({
+                ...prev,
+                startTime: e.target.value
+              }))} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">End Time</label>
+                <Input type="time" value={editTileData.endTime} onChange={e => setEditTileData(prev => ({
+                ...prev,
+                endTime: e.target.value
+              }))} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Color</label>
+              <div className="flex gap-2">
+                {['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'].map(color => <button key={color} className="w-8 h-8 rounded-full border-2 transition-all" style={{
+                backgroundColor: color,
+                borderColor: editTileData.color === color ? '#000' : 'transparent'
+              }} onClick={() => setEditTileData(prev => ({
+                ...prev,
+                color
+              }))} />)}
+              </div>
+            </div>
+            <Button onClick={handleSaveEditTile} className="w-full">
+              Save Changes
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <AccountSettings 
+        open={showAccountSettings} 
+        onOpenChange={setShowAccountSettings}
+        userEmail={userEmail}
+      />
+    </div>;
+};
+export default Timetable;
