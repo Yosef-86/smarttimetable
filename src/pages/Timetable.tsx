@@ -217,6 +217,25 @@ const Timetable = () => {
         return;
       }
     }
+
+    // Check for room type compatibility (Lab courses must be in ComLab rooms)
+    const isLabCourse = /\(lab\)/i.test(draggingTile.courseName);
+    const isComLabRoom = /^CL\d+$|ComLab/i.test(room);
+    
+    if (isLabCourse && !isComLabRoom) {
+      toast.error("Lab courses can only be placed in ComLab rooms (CL1, CL2, etc.)");
+      setDraggingTile(null);
+      setIsDragging(false);
+      return;
+    }
+    
+    if (!isLabCourse && isComLabRoom) {
+      toast.error("ComLab rooms are reserved for Lab courses only");
+      setDraggingTile(null);
+      setIsDragging(false);
+      return;
+    }
+
     const existingTile = placedTiles.find(t => t.id === draggingTile.id);
     if (existingTile) {
       // Move existing tile
