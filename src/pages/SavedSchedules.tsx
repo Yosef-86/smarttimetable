@@ -291,7 +291,7 @@ const SavedSchedules = () => {
               <h3 className="text-xl font-semibold mb-4 text-primary print:text-black print:text-[9px] print:mb-[2px] print:mt-0 print:font-bold print:h-auto">{day}</h3>
               <div className="border border-border rounded-lg overflow-hidden print:border print:border-black print:rounded-none print:h-[calc(100vh-1.5cm)] print:flex print:flex-col print:overflow-hidden">
                 {/* Header Row */}
-                <div className="grid bg-muted/50 border-b border-border print:bg-white print:border-b print:border-black print:h-6 print:h-[0.7cm] print:min-h-0" style={{ gridTemplateColumns: `70px repeat(${scheduleRooms.length}, minmax(60px, 1fr))` }}>
+                <div className="grid bg-muted/50 border-b border-border print:bg-white print:border-b print:border-black print:h-6 print:h-[0.7cm] print:min-h-0" style={{ gridTemplateColumns: `70px repeat(${scheduleRooms.length}, 160px)` }}>
                   <div className="p-2 font-semibold text-center border-r print:border print:border-black print:text-black print:text-[8px] print:p-[2px] print:flex print:items-center print:justify-center print:font-bold print:leading-tight whitespace-nowrap">Time</div>
                   {scheduleRooms.map(room => (
                     <div key={room} className="p-2 font-semibold text-center border-r last:border-r-0 text-sm print:border print:border-black print:text-black print:text-[8px] print:p-[2px] print:flex print:items-center print:justify-center print:font-bold print:leading-tight">
@@ -304,7 +304,7 @@ const SavedSchedules = () => {
                 <div 
                   className="grid print:grid-rows-24"
                   style={{ 
-                    gridTemplateColumns: `70px repeat(${scheduleRooms.length}, minmax(60px, 1fr))`,
+                    gridTemplateColumns: `70px repeat(${scheduleRooms.length}, 160px)`,
                     gridTemplateRows: `repeat(${numTimeSlots}, minmax(50px, auto))`
                   }}
                 >
