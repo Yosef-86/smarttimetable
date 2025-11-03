@@ -11,6 +11,7 @@ export interface CourseTile {
   originalDuration?: number; // Original duration before splitting
   subjectType?: 'Lec' | 'Lab'; // Lecture or Laboratory
   labType?: 'Kitchen Laboratory' | 'Computer Laboratory'; // Type of lab if subjectType is Lab
+  isAsynchronous?: boolean; // Whether this is an asynchronous class
 }
 
 export interface TimeSlot {

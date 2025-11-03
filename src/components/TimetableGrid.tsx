@@ -298,8 +298,11 @@ export const TimetableGrid = ({
                               <X className="h-2.5 w-2.5" />
                             </Button>
                             <div className="overflow-hidden w-full">
-                              <div className="text-white font-semibold text-[10px] mb-0.5 leading-tight break-all">
+                              <div className="text-white font-semibold text-[10px] mb-0.5 leading-tight break-all flex items-center gap-1">
                                 {tile.courseName}
+                                {tile.isAsynchronous && (
+                                  <span className="text-[7px] bg-white/20 px-1 rounded">ASYNC</span>
+                                )}
                               </div>
                               <div className="text-white/90 text-[9px] leading-tight break-all">
                                 {tile.section}

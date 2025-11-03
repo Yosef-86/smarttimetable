@@ -35,9 +35,9 @@ const Timetable = () => {
     teacher: "",
     durationHours: 1,
     durationMinutes: 30,
-    color: "#3b82f6",
     subjectType: "Lec" as 'Lec' | 'Lab',
-    labType: "Computer Laboratory" as 'Kitchen Laboratory' | 'Computer Laboratory'
+    labType: "Computer Laboratory" as 'Kitchen Laboratory' | 'Computer Laboratory',
+    isAsynchronous: false
   });
   const [isEditTileOpen, setIsEditTileOpen] = useState(false);
   const [editingTile, setEditingTile] = useState<PlacedTile | null>(null);
@@ -47,9 +47,9 @@ const Timetable = () => {
     teacher: "",
     startTime: "",
     endTime: "",
-    color: "",
     subjectType: "Lec" as 'Lec' | 'Lab',
-    labType: "Computer Laboratory" as 'Kitchen Laboratory' | 'Computer Laboratory'
+    labType: "Computer Laboratory" as 'Kitchen Laboratory' | 'Computer Laboratory',
+    isAsynchronous: false
   });
 
   // Check authentication
@@ -340,8 +340,6 @@ const Timetable = () => {
           header: 1
         });
         const coursesMap = new Map<string, CourseTile>();
-        const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16'];
-        let colorIndex = 0;
 
         // Parse the timetable format
         jsonData.forEach((row: any, rowIndex) => {
@@ -439,9 +437,9 @@ const Timetable = () => {
                 startTime: `${String(startHour).padStart(2, '0')}:${String(startMin).padStart(2, '0')}`,
                 endTime: `${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}`,
                 duration: duration || 2,
-                color: colors[colorIndex % colors.length]
+                color: '#10b981', // Default light green
+                isAsynchronous: false
               });
-              colorIndex++;
             }
           });
         });
@@ -531,6 +529,9 @@ const Timetable = () => {
     
     const duration = Math.ceil(totalMinutes / 30); // Convert to 30-minute slots
     
+    // Determine color based on async status
+    const tileColor = newTile.isAsynchronous ? '#f59e0b' : '#10b981'; // Orange for async, light green for normal
+    
     // Use placeholder times - actual time will be set when placed on grid
     const tile: CourseTile = {
       id: `tile-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -540,9 +541,10 @@ const Timetable = () => {
       startTime: "08:00", // Placeholder
       endTime: "09:30", // Placeholder
       duration,
-      color: newTile.color,
+      color: tileColor,
       subjectType: newTile.subjectType,
-      labType: newTile.labType
+      labType: newTile.labType,
+      isAsynchronous: newTile.isAsynchronous
     };
     setAvailableTiles(prev => [...prev, tile]);
 
@@ -558,9 +560,9 @@ const Timetable = () => {
       teacher: "",
       durationHours: 1,
       durationMinutes: 30,
-      color: "#3b82f6",
       subjectType: "Lec",
-      labType: "Computer Laboratory"
+      labType: "Computer Laboratory",
+      isAsynchronous: false
     });
     setIsAddTileOpen(false);
   };
@@ -578,9 +580,9 @@ const Timetable = () => {
         teacher: courseTile.teacher,
         startTime: courseTile.startTime,
         endTime: courseTile.endTime,
-        color: courseTile.color,
         subjectType: courseTile.subjectType || 'Lec',
-        labType: courseTile.labType || 'Computer Laboratory'
+        labType: courseTile.labType || 'Computer Laboratory',
+        isAsynchronous: courseTile.isAsynchronous || false
       });
       setIsEditTileOpen(true);
       // Store the ID to update later
@@ -608,9 +610,9 @@ const Timetable = () => {
         teacher: placedTile.teacher,
         startTime: actualStartTime,
         endTime: actualEndTime,
-        color: placedTile.color,
         subjectType: placedTile.subjectType || 'Lec',
-        labType: placedTile.labType || 'Computer Laboratory'
+        labType: placedTile.labType || 'Computer Laboratory',
+        isAsynchronous: placedTile.isAsynchronous || false
       });
       setIsEditTileOpen(true);
     }
@@ -626,7 +628,8 @@ const Timetable = () => {
     const isSidebarTile = !editingTile.day;
     
     if (isSidebarTile) {
-      // Update sidebar tile
+      // Update sidebar tile with new color based on async status
+      const tileColor = editTileData.isAsynchronous ? '#f59e0b' : '#10b981';
       const updatedTiles = availableTiles.map(t => 
         t.id === editingTile.id 
           ? {
@@ -634,9 +637,10 @@ const Timetable = () => {
               courseName: editTileData.courseName.trim(),
               section: editTileData.section.trim(),
               teacher: editTileData.teacher.trim(),
-              color: editTileData.color,
+              color: tileColor,
               subjectType: editTileData.subjectType,
-              labType: editTileData.labType
+              labType: editTileData.labType,
+              isAsynchronous: editTileData.isAsynchronous
             }
           : t
       );
@@ -673,6 +677,9 @@ const Timetable = () => {
       const remainingEndHour = Math.floor(remainingEndMinutes / 60);
       const remainingEndMin = remainingEndMinutes % 60;
 
+      // Determine color based on async status
+      const tileColor = editTileData.isAsynchronous ? '#f59e0b' : '#10b981';
+
       // Create new tile with remaining time
       const remainingTile: CourseTile = {
         id: `tile-${Date.now()}-remaining`,
@@ -682,10 +689,11 @@ const Timetable = () => {
         startTime: `${String(remainingStartHour).padStart(2, '0')}:${String(remainingStartMin).padStart(2, '0')}`,
         endTime: `${String(remainingEndHour).padStart(2, '0')}:${String(remainingEndMin).padStart(2, '0')}`,
         duration: remainingDuration,
-        color: editTileData.color,
+        color: tileColor,
         splitFromId: editingTile.id, // Track which tile this was split from
         subjectType: editTileData.subjectType,
-        labType: editTileData.labType
+        labType: editTileData.labType,
+        isAsynchronous: editTileData.isAsynchronous
       };
 
       // Add to available tiles
@@ -703,6 +711,9 @@ const Timetable = () => {
       }
     }
 
+    // Determine color based on async status
+    const tileColor = editTileData.isAsynchronous ? '#f59e0b' : '#10b981';
+    
     // Update the placed tile
     setPlacedTiles(prev => prev.map(t => t.id === editingTile.id ? {
       ...t,
@@ -712,10 +723,11 @@ const Timetable = () => {
       startTime: editTileData.startTime,
       endTime: editTileData.endTime,
       duration: newDuration,
-      color: editTileData.color,
+      color: tileColor,
       originalDuration: t.originalDuration || oldDuration, // Store original duration
       subjectType: editTileData.subjectType,
-      labType: editTileData.labType
+      labType: editTileData.labType,
+      isAsynchronous: editTileData.isAsynchronous
     } : t));
     setIsEditTileOpen(false);
     setEditingTile(null);
@@ -901,17 +913,20 @@ const Timetable = () => {
                 </Select>
               </div>
             )}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Color</label>
-              <div className="flex gap-2">
-                {['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'].map(color => <button key={color} className="w-8 h-8 rounded-full border-2 transition-all" style={{
-                backgroundColor: color,
-                borderColor: editTileData.color === color ? '#000' : 'transparent'
-              }} onClick={() => setEditTileData(prev => ({
-                ...prev,
-                color
-              }))} />)}
-              </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="async-edit"
+                checked={editTileData.isAsynchronous}
+                onChange={(e) => setEditTileData(prev => ({
+                  ...prev,
+                  isAsynchronous: e.target.checked
+                }))}
+                className="w-4 h-4 rounded border-gray-300"
+              />
+              <label htmlFor="async-edit" className="text-sm font-medium">
+                Asynchronous Class
+              </label>
             </div>
             <Button onClick={handleSaveEditTile} className="w-full">
               Save Changes

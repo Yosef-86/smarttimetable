@@ -25,9 +25,9 @@ interface TileSidebarProps {
     teacher: string;
     durationHours: number;
     durationMinutes: number;
-    color: string;
     subjectType: 'Lec' | 'Lab';
     labType: 'Kitchen Laboratory' | 'Computer Laboratory';
+    isAsynchronous: boolean;
   };
   setNewTile: (tile: any) => void;
   onAddTile: () => void;
@@ -182,17 +182,20 @@ export const TileSidebar = ({
                   </Select>
                 </div>
               )}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Color</label>
-                <div className="flex gap-2">
-                  {['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'].map(color => <button key={color} className="w-8 h-8 rounded-full border-2 transition-all" style={{
-                  backgroundColor: color,
-                  borderColor: newTile.color === color ? '#000' : 'transparent'
-                }} onClick={() => setNewTile((prev: any) => ({
-                  ...prev,
-                  color
-                }))} />)}
-                </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="async-new"
+                  checked={newTile.isAsynchronous}
+                  onChange={(e) => setNewTile((prev: any) => ({
+                    ...prev,
+                    isAsynchronous: e.target.checked
+                  }))}
+                  className="w-4 h-4 rounded border-gray-300"
+                />
+                <label htmlFor="async-new" className="text-sm font-medium">
+                  Asynchronous Class
+                </label>
               </div>
               <Button onClick={onAddTile} className="w-full">
                 Add Tile
@@ -281,8 +284,11 @@ export const TileSidebar = ({
                 <div className="flex items-start gap-2">
                   <GripVertical className="w-4 h-4 text-white/70 flex-shrink-0 mt-1 ml-8" />
                   <div className="flex-1 min-w-0 pr-4">
-                    <div className="text-white font-semibold text-sm mb-1 truncate">
+                    <div className="text-white font-semibold text-sm mb-1 truncate flex items-center gap-2">
                       {tile.courseName}
+                      {tile.isAsynchronous && (
+                        <span className="text-[9px] bg-white/20 px-1.5 py-0.5 rounded">ASYNC</span>
+                      )}
                     </div>
                     <div className="text-white/90 text-xs truncate">
                       {tile.section}
