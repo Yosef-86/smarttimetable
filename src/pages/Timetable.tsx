@@ -196,6 +196,27 @@ const Timetable = () => {
         return;
       }
     }
+
+    // Check for section conflicts across different rooms on the same day
+    if (draggingTile.section && draggingTile.section.trim() !== "") {
+      const hasSectionConflict = placedTiles.some(t => {
+        if (t.id === draggingTile.id) return false; // Allow moving the same tile
+        if (t.day !== currentDay) return false; // Only check same day
+        if (!t.section || t.section.trim() === "") return false; // Skip if no section assigned
+        if (t.section !== draggingTile.section) return false; // Only check same section
+
+        // Check if the new tile would overlap with existing tile's time
+        const newTileEnd = slotIndex + draggingTile.duration;
+        const existingTileEnd = t.slotIndex + t.duration;
+        return slotIndex >= t.slotIndex && slotIndex < existingTileEnd || newTileEnd > t.slotIndex && newTileEnd <= existingTileEnd || slotIndex <= t.slotIndex && newTileEnd >= existingTileEnd;
+      });
+      if (hasSectionConflict) {
+        toast.error(`Section ${draggingTile.section} already has a class at this time`);
+        setDraggingTile(null);
+        setIsDragging(false);
+        return;
+      }
+    }
     const existingTile = placedTiles.find(t => t.id === draggingTile.id);
     if (existingTile) {
       // Move existing tile
