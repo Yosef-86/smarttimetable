@@ -273,6 +273,10 @@ export const TimetableGrid = ({
 
                     // Render the actual tile if it starts at this slot
                     if (tile && tile.slotIndex === slotIndex) {
+                      const canMerge = !!draggingTile && (
+                        draggingTile.courseName === tile.courseName &&
+                        draggingTile.teacher === tile.teacher
+                      );
                       return (
                         <div
                           key={`${room}-${slotIndex}`}
@@ -291,7 +295,22 @@ export const TimetableGrid = ({
                             }}
                             onDragEnd={onDragEnd}
                             onDoubleClick={() => onEditTile(tile)}
-                            className="relative w-full h-full p-1.5 rounded cursor-move hover:opacity-95 transition-opacity shadow-sm flex flex-col justify-between"
+                            // Allow dropping on top when mergeable
+                            onDragOver={(e) => {
+                              if (canMerge) {
+                                e.preventDefault();
+                                setDragOverCell({ room, slotIndex: tile.slotIndex });
+                              }
+                            }}
+                            onDrop={(e) => {
+                              if (canMerge) {
+                                handleDrop(e as any, room, tile.slotIndex);
+                              }
+                            }}
+                            className={cn(
+                              "relative w-full h-full p-1.5 rounded cursor-move hover:opacity-95 transition-opacity shadow-sm flex flex-col justify-between",
+                              canMerge && "ring-2 ring-primary/50"
+                            )}
                             style={{ backgroundColor: tile.color }}
                             title="Double-click to edit"
                           >
