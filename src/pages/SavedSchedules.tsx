@@ -191,12 +191,12 @@ const SavedSchedules = () => {
 
     return (
       <div className="w-full overflow-x-auto print:overflow-visible">
-        <div className="min-w-max border border-border rounded-lg overflow-hidden print:border print:border-black print:rounded-none">
+        <div className="min-w-max border border-border rounded-lg overflow-hidden print:border-2 print:border-black print:rounded-none">
           {/* Header Row */}
-          <div className="grid bg-muted/50 border-b border-border print:bg-white print:border-b print:border-black" style={{ gridTemplateColumns: `120px repeat(${DAYS.length}, 180px)` }}>
-            <div className="p-3 font-semibold text-center border-r border-border print:border print:border-black print:text-black print:text-[8px] print:p-[2px] print:flex print:items-center print:justify-center print:font-bold">Time</div>
+          <div className="grid bg-muted/50 border-b border-border print:bg-white print:border-b-2 print:border-black" style={{ gridTemplateColumns: `120px repeat(${DAYS.length}, 180px)` }}>
+            <div className="p-3 font-semibold text-center border-r border-border print:border-r-2 print:border-black print:text-black print:text-xs print:p-2 print:flex print:items-center print:justify-center print:font-bold">Time</div>
             {DAYS.map(day => (
-              <div key={day} className="p-3 font-semibold text-center border-r last:border-r-0 border-border print:border print:border-black print:text-black print:text-[8px] print:p-[2px] print:flex print:items-center print:justify-center print:font-bold">
+              <div key={day} className="p-3 font-semibold text-center border-r last:border-r-0 border-border print:border-r-2 print:last:border-r-0 print:border-black print:text-black print:text-xs print:p-2 print:flex print:items-center print:justify-center print:font-bold">
                 {day}
               </div>
             ))}
@@ -204,7 +204,7 @@ const SavedSchedules = () => {
           
           {/* Unified Grid: render base cells first, then overlay tiles to avoid distortion */}
           <div 
-            className="grid relative"
+            className="grid relative print:grid-rows-[repeat(24,minmax(0,1fr))]"
             style={{ 
               gridTemplateColumns: `120px repeat(${DAYS.length}, 180px)`,
               gridTemplateRows: `repeat(${numTimeSlots}, minmax(70px, auto))`
@@ -214,7 +214,7 @@ const SavedSchedules = () => {
             {TIME_SLOTS.slice(0, -1).map((time, slotIndex) => (
               <div 
                 key={`time-${slotIndex}`}
-                className="p-3 text-sm font-medium border-r border-b border-border bg-muted/20 flex items-center justify-center whitespace-nowrap print:border print:border-black print:bg-white print:text-black print:text-[7px] print:font-normal print:p-[1px]"
+                className="p-3 text-sm font-medium border-r border-b border-border bg-muted/20 flex items-center justify-center whitespace-nowrap print:border-r-2 print:border-b print:border-black print:bg-white print:text-black print:text-[9px] print:font-semibold print:p-1.5"
                 style={{ gridColumn: 1, gridRow: slotIndex + 1 }}
               >
                 {time}
@@ -226,7 +226,7 @@ const SavedSchedules = () => {
               DAYS.map((day, dayIndex) => (
                 <div
                   key={`base-${day}-${slotIndex}`}
-                  className="border-r border-b border-border last:border-r-0 bg-card print:border print:border-black"
+                  className="border-r border-b border-border last:border-r-0 bg-card print:border-r-2 print:border-b print:last:border-r-0 print:border-black print:bg-white"
                   style={{ gridColumn: dayIndex + 2, gridRow: slotIndex + 1 }}
                 />
               ))
@@ -242,27 +242,27 @@ const SavedSchedules = () => {
               return (
                 <div
                   key={`tile-${idx}-${tile.id ?? ''}`}
-                  className="relative z-10 border-r border-b border-border last:border-r-0 print:border print:border-black"
+                  className="relative z-10 border-r border-b border-border last:border-r-0 print:border-r-2 print:border-b print:last:border-r-0 print:border-black"
                   style={{ 
                     gridColumn: dayIndex + 2,
                     gridRow: `${tile.slotIndex + 1} / span ${tile.duration}`,
                     backgroundColor: tile.color 
                   }}
                 >
-                  <div className="p-3 w-full h-full flex flex-col justify-center print:p-[2px] print:justify-start print:bg-white">
-                    <div className="text-white font-bold text-sm mb-1 print:text-black print:text-[6.5px] print:mb-0">
+                  <div className="p-3 w-full h-full flex flex-col justify-center print:p-1.5 print:justify-start">
+                    <div className="text-white font-bold text-sm mb-1 print:text-black print:text-[9px] print:mb-0.5 print:font-bold">
                       {tile.courseName}
                     </div>
-                    <div className="text-white/95 text-xs mb-0.5 print:text-black print:text-[6px] print:mb-0">
+                    <div className="text-white/95 text-xs mb-0.5 print:text-black print:text-[8px] print:mb-0.5">
                       {tile.section}
                     </div>
-                    <div className="text-white/90 text-xs mb-0.5 print:text-black print:text-[6px] print:mb-0">
+                    <div className="text-white/90 text-xs mb-0.5 print:text-black print:text-[8px] print:mb-0.5">
                       {tile.teacher}
                     </div>
-                    <div className="text-white/95 text-xs font-semibold mt-1 print:text-black print:text-[6px] print:mt-0">
+                    <div className="text-white/95 text-xs font-semibold mt-1 print:text-black print:text-[8px] print:mt-0.5 print:font-semibold">
                       Room: {tile.room}
                     </div>
-                    <div className="text-white/80 text-xs mt-1 print:text-black print:text-[5.5px] print:mt-0">
+                    <div className="text-white/80 text-xs mt-1 print:text-black print:text-[7.5px] print:mt-0.5">
                       {actualStartTime} - {actualEndTime}
                     </div>
                   </div>

@@ -6,6 +6,18 @@
 All colors MUST be HSL.
 */
 
+@media print {
+  @page {
+    size: landscape;
+    margin: 0.5cm;
+  }
+  
+  body {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
+
 @layer base {
   :root {
     --background: 220 15% 98%;
@@ -113,16 +125,15 @@ All colors MUST be HSL.
 @media print {
   @page {
     size: landscape;
-    margin: 0.2cm;
+    margin: 0.5cm;
   }
 
   body {
     background: white !important;
-    color: black !important;
     margin: 0 !important;
     padding: 0 !important;
-    font-size: 7px !important;
-    line-height: 1.2 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   .print\:break-after-page {
@@ -132,55 +143,5 @@ All colors MUST be HSL.
 
   .print\:hidden {
     display: none !important;
-  }
-
-  /* Full page for each day */
-  .print\:h-screen, .print\:h-\[100vh\] {
-    height: 100vh !important;
-    max-height: 100vh !important;
-  }
-
-  /* Force uniform small row heights for time slots */
-  .print\:grid-rows-24 {
-    display: grid !important;
-    grid-template-rows: repeat(24, calc((100vh - 4cm) / 24)) !important;
-    grid-auto-rows: calc((100vh - 4cm) / 24) !important;
-  }
-  
-  .print\:flex-1 {
-    flex: 1 !important;
-  }
-
-  /* Ensure grid cells have minimal height */
-  .print\:h-auto {
-    height: auto !important;
-    min-height: 0 !important;
-  }
-  
-  .print\:min-h-0 {
-    min-height: 0 !important;
-  }
-  
-  .print\:leading-none {
-    line-height: 1 !important;
-  }
-
-  /* Override all background colors to white for printing */
-  [style*="backgroundColor"] {
-    background-color: white !important;
-    color: black !important;
-  }
-
-  /* Ensure all text is black */
-  * {
-    color: black !important;
-    background: white !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  /* Ensure all borders are black */
-  [class*="border"], div, td, th {
-    border-color: black !important;
   }
 }
