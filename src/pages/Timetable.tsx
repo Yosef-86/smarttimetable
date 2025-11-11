@@ -542,13 +542,22 @@ const Timetable = () => {
       createdAt: new Date()
     }));
 
-    // Auto-save section schedules
-    const uniqueSections = Array.from(new Set(placedTiles.map(t => t.section).filter(s => s && s.trim() !== "")));
-    const sectionSchedules = uniqueSections.map(section => ({
+    // Auto-save section schedules - include merged tiles in each section
+    const allSections = new Set<string>();
+    placedTiles.forEach(tile => {
+      // Handle merged sections (e.g., "CS 101, ACT 101")
+      const sections = tile.section.split(',').map(s => s.trim()).filter(s => s !== "");
+      sections.forEach(s => allSections.add(s));
+    });
+    
+    const sectionSchedules = Array.from(allSections).map(section => ({
       id: `section-${section}-${Date.now()}`,
       name: section,
       type: 'section' as const,
-      tiles: placedTiles.filter(t => t.section === section),
+      tiles: placedTiles.filter(t => {
+        const sections = t.section.split(',').map(s => s.trim());
+        return sections.includes(section);
+      }),
       createdAt: new Date()
     }));
 
