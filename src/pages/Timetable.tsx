@@ -452,7 +452,6 @@ const Timetable = () => {
 
             // Split remaining text to extract section and teacher
             const parts = remainingText.split(/\s+/).filter(p => p.length > 0);
-            if (parts.length < 2) return;
             let section = '';
             let teacher = '';
 
@@ -483,6 +482,12 @@ const Timetable = () => {
             if (!courseName && sectionIndex > 0) {
               courseName = parts.slice(0, sectionIndex).join(' ').replace(/\(LAB\)|\(LEC\)/gi, '').trim();
             }
+            
+            // If still no course name but we have parts, use all parts as course name
+            if (!courseName && parts.length > 0) {
+              courseName = parts.join(' ').replace(/\(LAB\)|\(LEC\)/gi, '').trim();
+            }
+            
             if (!courseName) return;
 
             // Create unique key for each course-section-teacher combination
