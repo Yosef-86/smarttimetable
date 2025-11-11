@@ -523,14 +523,15 @@ const Timetable = () => {
     // Store timetable data
     localStorage.setItem("timetableData", JSON.stringify(placedTiles));
 
-    // Auto-save complete timetable as "room" type
-    const completeTimetable = {
-      id: `complete-${Date.now()}`,
-      name: "Complete Timetable",
+    // Auto-save room schedules (one per room)
+    const uniqueRooms = Array.from(new Set(placedTiles.map(t => t.room).filter(r => r && r.trim() !== "")));
+    const roomSchedules = uniqueRooms.map(room => ({
+      id: `room-${room}-${Date.now()}`,
+      name: room,
       type: 'room' as const,
-      tiles: placedTiles,
+      tiles: placedTiles.filter(t => t.room === room),
       createdAt: new Date()
-    };
+    }));
 
     // Auto-save teacher schedules
     const uniqueTeachers = Array.from(new Set(placedTiles.map(t => t.teacher).filter(t => t && t.trim() !== "")));
@@ -562,9 +563,9 @@ const Timetable = () => {
     }));
 
     // Combine all schedules
-    const allSchedules = [completeTimetable, ...teacherSchedules, ...sectionSchedules];
+    const allSchedules = [...roomSchedules, ...teacherSchedules, ...sectionSchedules];
     localStorage.setItem("savedSchedules", JSON.stringify(allSchedules));
-    toast.success(`Timetable saved! ${teacherSchedules.length} teachers, ${sectionSchedules.length} sections`);
+    toast.success(`Timetable saved! ${roomSchedules.length} rooms, ${teacherSchedules.length} teachers, ${sectionSchedules.length} sections`);
   };
   const handleReset = () => {
     if (confirm("Are you sure you want to reset everything? This will return all placed tiles to the sidebar.")) {

@@ -71,6 +71,7 @@ const SavedSchedules = () => {
 
   const teacherGroups = groupSchedulesByDate(teacherSchedules);
   const sectionGroups = groupSchedulesByDate(sectionSchedules);
+  const roomGroups = groupSchedulesByDate(roomSchedules);
 
   const toggleFolder = (folderKey: string) => {
     setExpandedFolders(prev => ({ ...prev, [folderKey]: !prev[folderKey] }));
@@ -418,10 +419,7 @@ const SavedSchedules = () => {
         </div>
 
         <div className="container mx-auto px-4 py-8 print:px-2 print:py-4">
-          {viewingSchedule.type === 'room' 
-            ? renderScheduleGrid(viewingSchedule.tiles)
-            : renderTeacherSectionGrid(viewingSchedule.tiles)
-          }
+          {renderTeacherSectionGrid(viewingSchedule.tiles)}
         </div>
       </div>
     );
@@ -460,45 +458,10 @@ const SavedSchedules = () => {
                 No room schedules saved yet. Save a timetable from the Timetable page!
               </div>
             ) : (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {roomSchedules.map(schedule => (
-                  <Card key={schedule.id} className="hover:shadow-lg transition-shadow">
-                    <CardHeader>
-                      <div className="flex items-center gap-3">
-                        <DoorOpen className="w-8 h-8 text-accent" />
-                        <div>
-                          <CardTitle className="text-lg">{schedule.name}</CardTitle>
-                          <CardDescription>Room Schedule</CardDescription>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground">
-                        {schedule.tiles.length} classes scheduled
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Created: {new Date(schedule.createdAt).toLocaleDateString()}
-                      </p>
-                    </CardContent>
-                    <CardFooter className="flex gap-2">
-                      <Button
-                        variant="default"
-                        className="flex-1"
-                        onClick={() => setViewingSchedule(schedule)}
-                      >
-                        <Eye className="w-4 h-4 mr-2" />
-                        View
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        onClick={() => handleDeleteSchedule(schedule.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                ))}
+              <div className="space-y-4">
+                {Object.entries(roomGroups).map(([date, schedules]) => 
+                  renderDateFolder(date, schedules, DoorOpen, "text-accent")
+                )}
               </div>
             )}
           </TabsContent>
