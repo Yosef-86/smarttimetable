@@ -345,13 +345,27 @@ const Timetable = () => {
     if (!tile) return;
     setPlacedTiles(prev => prev.filter(t => t.id !== tileId));
 
-    // Add back to available tiles
-    const updatedAvailableTiles = [...availableTiles, tile];
-    setAvailableTiles(updatedAvailableTiles);
-
-    // Update localStorage
-    localStorage.setItem("uploadedTiles", JSON.stringify(updatedAvailableTiles));
-    toast.info("Tile removed from timetable");
+    // Check if the tile has merged sections (contains '/')
+    if (tile.section && tile.section.includes('/')) {
+      // Split the merged tile back into individual tiles
+      const sections = tile.section.split('/').filter(s => s.trim());
+      const splitTiles = sections.map((section, index) => ({
+        ...tile,
+        id: `${tile.id}-split-${index}-${Date.now()}`,
+        section: section.trim(),
+      }));
+      
+      const updatedAvailableTiles = [...availableTiles, ...splitTiles];
+      setAvailableTiles(updatedAvailableTiles);
+      localStorage.setItem("uploadedTiles", JSON.stringify(updatedAvailableTiles));
+      toast.info("Merged tile split back into individual sections");
+    } else {
+      // Add back to available tiles as is
+      const updatedAvailableTiles = [...availableTiles, tile];
+      setAvailableTiles(updatedAvailableTiles);
+      localStorage.setItem("uploadedTiles", JSON.stringify(updatedAvailableTiles));
+      toast.info("Tile removed from timetable");
+    }
   };
   const handleAddRoom = (roomName: string) => {
     if (rooms.includes(roomName)) {
