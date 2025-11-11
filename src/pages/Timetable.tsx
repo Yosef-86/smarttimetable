@@ -545,8 +545,8 @@ const Timetable = () => {
     // Auto-save section schedules - include merged tiles in each section
     const allSections = new Set<string>();
     placedTiles.forEach(tile => {
-      // Handle merged sections (e.g., "CS 101, ACT 101")
-      const sections = tile.section.split(',').map(s => s.trim()).filter(s => s !== "");
+      // Handle merged sections (e.g., "CS 101, ACT 101" or "CS 101/ACT 101")
+      const sections = tile.section.split(/[\/,]+/).map(s => s.trim()).filter(s => s !== "");
       sections.forEach(s => allSections.add(s));
     });
     
@@ -555,7 +555,7 @@ const Timetable = () => {
       name: section,
       type: 'section' as const,
       tiles: placedTiles.filter(t => {
-        const sections = t.section.split(',').map(s => s.trim());
+        const sections = t.section.split(/[\/,]+/).map(s => s.trim());
         return sections.includes(section);
       }),
       createdAt: new Date()
