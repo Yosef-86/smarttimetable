@@ -57,7 +57,8 @@ export const TimetableGrid = ({
     const maxSlots = 28;
     if (slotIndex + duration > maxSlots) return false;
 
-    return !placedTiles.some(t => {
+    // Check for overlapping tiles
+    const overlappingTile = placedTiles.find(t => {
       if (t.room !== room || t.day !== day) return false;
       const newTileEnd = slotIndex + duration;
       const existingTileEnd = t.slotIndex + t.duration;
@@ -68,6 +69,15 @@ export const TimetableGrid = ({
         (slotIndex <= t.slotIndex && newTileEnd >= existingTileEnd)
       );
     });
+
+    // If there's an overlap, check if it's mergeable
+    if (overlappingTile && draggingTile) {
+      // Allow if same course and teacher (mergeable)
+      return overlappingTile.courseName === draggingTile.courseName && 
+             overlappingTile.teacher === draggingTile.teacher;
+    }
+
+    return !overlappingTile;
   };
 
   const handleDrop = (e: React.DragEvent, room: string, slotIndex: number) => {
