@@ -51,6 +51,13 @@ const Timetable = () => {
     labType: "Computer Laboratory" as 'Kitchen Laboratory' | 'Computer Laboratory',
     isAsynchronous: false
   });
+  const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
+  const [pendingMerge, setPendingMerge] = useState<{
+    newTile: CourseTile;
+    existingTile: PlacedTile;
+    room: string;
+    slotIndex: number;
+  } | null>(null);
 
   // Check authentication
   useEffect(() => {
@@ -164,7 +171,7 @@ const Timetable = () => {
     }
 
     // Check for overlapping tiles in the same room and day
-    const hasRoomOverlap = placedTiles.some(t => {
+    const overlappingTile = placedTiles.find(t => {
       if (t.id === draggingTile.id) return false; // Allow moving the same tile
       if (t.room !== room || t.day !== currentDay) return false;
 
@@ -173,11 +180,28 @@ const Timetable = () => {
       const existingTileEnd = t.slotIndex + t.duration;
       return slotIndex >= t.slotIndex && slotIndex < existingTileEnd || newTileEnd > t.slotIndex && newTileEnd <= existingTileEnd || slotIndex <= t.slotIndex && newTileEnd >= existingTileEnd;
     });
-    if (hasRoomOverlap) {
-      toast.error("This time slot is already occupied");
-      setDraggingTile(null);
-      setIsDragging(false);
-      return;
+    
+    if (overlappingTile) {
+      // Check if we can merge (same course name and teacher)
+      if (overlappingTile.courseName === draggingTile.courseName && 
+          overlappingTile.teacher === draggingTile.teacher) {
+        // Ask user if they want to merge
+        setPendingMerge({
+          newTile: draggingTile,
+          existingTile: overlappingTile,
+          room,
+          slotIndex
+        });
+        setMergeDialogOpen(true);
+        setDraggingTile(null);
+        setIsDragging(false);
+        return;
+      } else {
+        toast.error("This time slot is already occupied");
+        setDraggingTile(null);
+        setIsDragging(false);
+        return;
+      }
     }
 
     // Check for teacher conflicts across different rooms on the same day
@@ -280,6 +304,39 @@ const Timetable = () => {
     setDraggingTile(null);
     setIsDragging(false);
     toast.success("Tile placed successfully!");
+  };
+
+  const handleMergeConfirm = () => {
+    if (!pendingMerge) return;
+
+    const { newTile, existingTile } = pendingMerge;
+
+    // Merge sections
+    const sections = [existingTile.section, newTile.section]
+      .filter((s, i, arr) => s && arr.indexOf(s) === i) // Remove duplicates and empty
+      .join('/');
+
+    // Update the existing tile with merged section
+    setPlacedTiles(prev => prev.map(t => 
+      t.id === existingTile.id 
+        ? { ...t, section: sections }
+        : t
+    ));
+
+    // Remove the new tile from available tiles if it's not already placed
+    const updatedAvailableTiles = availableTiles.filter(t => t.id !== newTile.id);
+    setAvailableTiles(updatedAvailableTiles);
+    localStorage.setItem("uploadedTiles", JSON.stringify(updatedAvailableTiles));
+
+    toast.success("Tiles merged successfully!");
+    setMergeDialogOpen(false);
+    setPendingMerge(null);
+  };
+
+  const handleMergeCancel = () => {
+    toast.error("Schedule conflict - cannot place tile");
+    setMergeDialogOpen(false);
+    setPendingMerge(null);
   };
   const handleRemoveTile = (tileId: string) => {
     const tile = placedTiles.find(t => t.id === tileId);
@@ -932,6 +989,47 @@ const Timetable = () => {
               Save Changes
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Merge Confirmation Dialog */}
+      <Dialog open={mergeDialogOpen} onOpenChange={setMergeDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Merge Tiles?</DialogTitle>
+            <DialogDescription>
+              This tile has the same subject and teacher as an existing tile. Do you want to merge them?
+            </DialogDescription>
+          </DialogHeader>
+          {pendingMerge && (
+            <div className="space-y-3">
+              <div className="p-3 bg-muted rounded-lg">
+                <p className="text-sm font-medium">Subject: {pendingMerge.existingTile.courseName}</p>
+                <p className="text-sm text-muted-foreground">Teacher: {pendingMerge.existingTile.teacher}</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Current Section: <span className="font-medium">{pendingMerge.existingTile.section}</span>
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  New Section: <span className="font-medium">{pendingMerge.newTile.section}</span>
+                </p>
+                <p className="text-sm text-primary mt-2">
+                  Merged Section: <span className="font-semibold">
+                    {[pendingMerge.existingTile.section, pendingMerge.newTile.section]
+                      .filter((s, i, arr) => s && arr.indexOf(s) === i)
+                      .join('/')}
+                  </span>
+                </p>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={handleMergeCancel}>
+                  No - Show Conflict
+                </Button>
+                <Button onClick={handleMergeConfirm}>
+                  Yes - Merge Tiles
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
