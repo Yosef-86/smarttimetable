@@ -716,6 +716,18 @@ const Timetable = () => {
     const isSidebarTile = !editingTile.day;
     
     if (isSidebarTile) {
+      // Calculate new duration from time range for sidebar tiles
+      const [newStartHour, newStartMin] = editTileData.startTime.split(':').map(Number);
+      const [newEndHour, newEndMin] = editTileData.endTime.split(':').map(Number);
+      const newStartMinutes = newStartHour * 60 + newStartMin;
+      const newEndMinutes = newEndHour * 60 + newEndMin;
+      const newDurationMinutes = newEndMinutes - newStartMinutes;
+      if (newDurationMinutes <= 0) {
+        toast.error("End time must be after start time");
+        return;
+      }
+      const newDuration = Math.ceil(newDurationMinutes / 30);
+      
       // Update sidebar tile with new color based on async status
       const tileColor = editTileData.isAsynchronous ? '#f59e0b' : '#10b981';
       const updatedTiles = availableTiles.map(t => 
@@ -725,6 +737,9 @@ const Timetable = () => {
               courseName: editTileData.courseName.trim(),
               section: editTileData.section.trim(),
               teacher: editTileData.teacher.trim(),
+              startTime: editTileData.startTime,
+              endTime: editTileData.endTime,
+              duration: newDuration,
               color: tileColor,
               subjectType: editTileData.subjectType,
               labType: editTileData.labType,
