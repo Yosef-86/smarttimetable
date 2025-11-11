@@ -204,11 +204,12 @@ const Timetable = () => {
       }
     }
 
-    // Check for teacher conflicts across different rooms on the same day
+    // Check for teacher conflicts across different rooms on the same day (but allow merging same course)
     if (draggingTile.teacher && draggingTile.teacher.trim() !== "") {
       const hasTeacherConflict = placedTiles.some(t => {
         if (t.id === draggingTile.id) return false; // Allow moving the same tile
         if (t.day !== currentDay) return false; // Only check same day
+        if (t.room === room) return false; // Skip same room (already handled above)
         if (!t.teacher || t.teacher.trim() === "") return false; // Skip if no teacher assigned
         if (t.teacher !== draggingTile.teacher) return false; // Only check same teacher
 
@@ -225,11 +226,12 @@ const Timetable = () => {
       }
     }
 
-    // Check for section conflicts across different rooms on the same day
+    // Check for section conflicts across different rooms on the same day (but allow merging same course)
     if (draggingTile.section && draggingTile.section.trim() !== "") {
       const hasSectionConflict = placedTiles.some(t => {
         if (t.id === draggingTile.id) return false; // Allow moving the same tile
         if (t.day !== currentDay) return false; // Only check same day
+        if (t.room === room) return false; // Skip same room (already handled above)
         if (!t.section || t.section.trim() === "") return false; // Skip if no section assigned
         if (t.section !== draggingTile.section) return false; // Only check same section
 
