@@ -14,7 +14,189 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      placed_tiles: {
+        Row: {
+          color: string
+          course_name: string
+          created_at: string | null
+          day: string
+          duration: number
+          end_time: string
+          id: string
+          is_asynchronous: boolean | null
+          lab_type: string | null
+          original_duration: number | null
+          room: string
+          section: string
+          slot_index: number
+          split_from_id: string | null
+          start_time: string
+          subject_type: string | null
+          teacher: string
+          tile_id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          color: string
+          course_name: string
+          created_at?: string | null
+          day: string
+          duration: number
+          end_time: string
+          id?: string
+          is_asynchronous?: boolean | null
+          lab_type?: string | null
+          original_duration?: number | null
+          room: string
+          section: string
+          slot_index: number
+          split_from_id?: string | null
+          start_time: string
+          subject_type?: string | null
+          teacher: string
+          tile_id: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          color?: string
+          course_name?: string
+          created_at?: string | null
+          day?: string
+          duration?: number
+          end_time?: string
+          id?: string
+          is_asynchronous?: boolean | null
+          lab_type?: string | null
+          original_duration?: number | null
+          room?: string
+          section?: string
+          slot_index?: number
+          split_from_id?: string | null
+          start_time?: string
+          subject_type?: string | null
+          teacher?: string
+          tile_id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      saved_schedules: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          schedule_id: string
+          tiles: Json
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          schedule_id: string
+          tiles: Json
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          schedule_id?: string
+          tiles?: Json
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_rooms: {
+        Row: {
+          created_at: string | null
+          id: string
+          rooms: Json
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          rooms?: Json
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          rooms?: Json
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_tiles: {
+        Row: {
+          color: string
+          course_name: string
+          created_at: string | null
+          duration: number
+          end_time: string
+          id: string
+          is_asynchronous: boolean | null
+          lab_type: string | null
+          original_duration: number | null
+          section: string
+          split_from_id: string | null
+          start_time: string
+          subject_type: string | null
+          teacher: string
+          tile_id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          color: string
+          course_name: string
+          created_at?: string | null
+          duration: number
+          end_time: string
+          id?: string
+          is_asynchronous?: boolean | null
+          lab_type?: string | null
+          original_duration?: number | null
+          section: string
+          split_from_id?: string | null
+          start_time: string
+          subject_type?: string | null
+          teacher: string
+          tile_id: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          color?: string
+          course_name?: string
+          created_at?: string | null
+          duration?: number
+          end_time?: string
+          id?: string
+          is_asynchronous?: boolean | null
+          lab_type?: string | null
+          original_duration?: number | null
+          section?: string
+          split_from_id?: string | null
+          start_time?: string
+          subject_type?: string | null
+          teacher?: string
+          tile_id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
