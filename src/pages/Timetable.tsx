@@ -47,8 +47,8 @@ const Timetable = () => {
     courseName: "",
     section: "",
     teacher: "",
-    startTime: "",
-    endTime: "",
+    durationHours: 0,
+    durationMinutes: 0,
     subjectType: "Lec" as 'Lec' | 'Lab',
     labType: "Computer Laboratory" as 'Kitchen Laboratory' | 'Computer Laboratory',
     isAsynchronous: false
@@ -715,15 +715,23 @@ const Timetable = () => {
     const isSidebarTile = !('day' in tile);
     
     if (isSidebarTile) {
-      // For sidebar tiles, use their existing time
+      // For sidebar tiles, calculate duration from their times
       const courseTile = tile as CourseTile;
+      const [startHour, startMin] = courseTile.startTime.split(':').map(Number);
+      const [endHour, endMin] = courseTile.endTime.split(':').map(Number);
+      const startMinutes = startHour * 60 + startMin;
+      const endMinutes = endHour * 60 + endMin;
+      const totalMinutes = endMinutes - startMinutes;
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      
       setEditingTile(null); // No placed tile, editing sidebar tile directly
       setEditTileData({
         courseName: courseTile.courseName,
         section: courseTile.section,
         teacher: courseTile.teacher,
-        startTime: courseTile.startTime,
-        endTime: courseTile.endTime,
+        durationHours: hours,
+        durationMinutes: minutes,
         subjectType: courseTile.subjectType || 'Lec',
         labType: courseTile.labType || 'Computer Laboratory',
         isAsynchronous: courseTile.isAsynchronous || false
@@ -732,28 +740,20 @@ const Timetable = () => {
       // Store the ID to update later
       setEditingTile({ ...courseTile, day: '', room: '', slotIndex: 0 } as any);
     } else {
-      // For placed tiles
+      // For placed tiles, calculate duration from duration property
       const placedTile = tile as PlacedTile;
       setEditingTile(placedTile);
       
-      // Calculate actual time based on slotIndex (8:00 AM = slot 0, each slot = 30 mins)
-      const startMinutes = 480 + (placedTile.slotIndex * 30); // 480 = 8:00 AM in minutes
-      const endMinutes = startMinutes + (placedTile.duration * 30);
-      
-      const startHour = Math.floor(startMinutes / 60);
-      const startMin = startMinutes % 60;
-      const endHour = Math.floor(endMinutes / 60);
-      const endMin = endMinutes % 60;
-      
-      const actualStartTime = `${String(startHour).padStart(2, '0')}:${String(startMin).padStart(2, '0')}`;
-      const actualEndTime = `${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}`;
+      const totalMinutes = placedTile.duration * 30;
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
       
       setEditTileData({
         courseName: placedTile.courseName,
         section: placedTile.section,
         teacher: placedTile.teacher,
-        startTime: actualStartTime,
-        endTime: actualEndTime,
+        durationHours: hours,
+        durationMinutes: minutes,
         subjectType: placedTile.subjectType || 'Lec',
         labType: placedTile.labType || 'Computer Laboratory',
         isAsynchronous: placedTile.isAsynchronous || false
@@ -768,21 +768,32 @@ const Timetable = () => {
       return;
     }
     
+    // Calculate duration from hours and minutes
+    const totalMinutes = editTileData.durationHours * 60 + editTileData.durationMinutes;
+    if (totalMinutes <= 0) {
+      toast.error("Duration must be greater than 0");
+      return;
+    }
+    const newDuration = Math.ceil(totalMinutes / 30);
+    
     // Check if editing a sidebar tile (no day property means sidebar tile)
     const isSidebarTile = !editingTile.day;
     
     if (isSidebarTile) {
-      // Calculate new duration from time range for sidebar tiles
-      const [newStartHour, newStartMin] = editTileData.startTime.split(':').map(Number);
-      const [newEndHour, newEndMin] = editTileData.endTime.split(':').map(Number);
-      const newStartMinutes = newStartHour * 60 + newStartMin;
-      const newEndMinutes = newEndHour * 60 + newEndMin;
-      const newDurationMinutes = newEndMinutes - newStartMinutes;
-      if (newDurationMinutes <= 0) {
-        toast.error("End time must be after start time");
-        return;
-      }
-      const newDuration = Math.ceil(newDurationMinutes / 30);
+      // For sidebar tiles, calculate new startTime and endTime
+      // Use existing startTime or default to 8:00 AM
+      const existingTile = availableTiles.find(t => t.id === editingTile.id);
+      const [startHour, startMin] = existingTile?.startTime 
+        ? existingTile.startTime.split(':').map(Number)
+        : [8, 0];
+      
+      const startMinutes = startHour * 60 + startMin;
+      const endMinutes = startMinutes + totalMinutes;
+      const endHour = Math.floor(endMinutes / 60);
+      const endMin = endMinutes % 60;
+      
+      const newStartTime = `${String(startHour).padStart(2, '0')}:${String(startMin).padStart(2, '0')}`;
+      const newEndTime = `${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}`;
       
       // Update sidebar tile with new color based on async status
       const tileColor = editTileData.isAsynchronous ? '#f59e0b' : '#10b981';
@@ -793,8 +804,8 @@ const Timetable = () => {
               courseName: editTileData.courseName.trim(),
               section: editTileData.section.trim(),
               teacher: editTileData.teacher.trim(),
-              startTime: editTileData.startTime,
-              endTime: editTileData.endTime,
+              startTime: newStartTime,
+              endTime: newEndTime,
               duration: newDuration,
               color: tileColor,
               subjectType: editTileData.subjectType,
@@ -816,17 +827,6 @@ const Timetable = () => {
       return;
     }
 
-    // Calculate new duration from time range
-    const [newStartHour, newStartMin] = editTileData.startTime.split(':').map(Number);
-    const [newEndHour, newEndMin] = editTileData.endTime.split(':').map(Number);
-    const newStartMinutes = newStartHour * 60 + newStartMin;
-    const newEndMinutes = newEndHour * 60 + newEndMin;
-    const newDurationMinutes = newEndMinutes - newStartMinutes;
-    if (newDurationMinutes <= 0) {
-      toast.error("End time must be after start time");
-      return;
-    }
-    const newDuration = Math.ceil(newDurationMinutes / 30);
     const oldDuration = editingTile.duration;
     const originalDuration = editingTile.originalDuration || oldDuration;
 
@@ -834,12 +834,13 @@ const Timetable = () => {
     if (newDuration < oldDuration) {
       // Calculate remaining time
       const remainingDuration = oldDuration - newDuration;
-      const remainingStartMinutes = newEndMinutes;
-      const remainingEndMinutes = remainingStartMinutes + remainingDuration * 30;
-      const remainingStartHour = Math.floor(remainingStartMinutes / 60);
-      const remainingStartMin = remainingStartMinutes % 60;
-      const remainingEndHour = Math.floor(remainingEndMinutes / 60);
-      const remainingEndMin = remainingEndMinutes % 60;
+      const usedMinutes = newDuration * 30;
+      const remainingMinutes = remainingDuration * 30;
+      
+      const remainingStartHour = Math.floor(usedMinutes / 60) + 8; // 8:00 AM base
+      const remainingStartMin = usedMinutes % 60;
+      const remainingEndHour = Math.floor((usedMinutes + remainingMinutes) / 60) + 8;
+      const remainingEndMin = (usedMinutes + remainingMinutes) % 60;
 
       // Determine color based on async status
       const tileColor = editTileData.isAsynchronous ? '#f59e0b' : '#10b981';
@@ -854,7 +855,7 @@ const Timetable = () => {
         endTime: `${String(remainingEndHour).padStart(2, '0')}:${String(remainingEndMin).padStart(2, '0')}`,
         duration: remainingDuration,
         color: tileColor,
-        splitFromId: editingTile.id, // Track which tile this was split from
+        splitFromId: editingTile.id,
         subjectType: editTileData.subjectType,
         labType: editTileData.labType,
         isAsynchronous: editTileData.isAsynchronous
@@ -888,17 +889,27 @@ const Timetable = () => {
     // Determine color based on async status
     const tileColor = editTileData.isAsynchronous ? '#f59e0b' : '#10b981';
     
+    // Calculate new startTime and endTime for placed tile
+    const startMinutes = 480 + (editingTile.slotIndex * 30);
+    const endMinutes = startMinutes + (newDuration * 30);
+    const startHour = Math.floor(startMinutes / 60);
+    const startMin = startMinutes % 60;
+    const endHour = Math.floor(endMinutes / 60);
+    const endMin = endMinutes % 60;
+    const newStartTime = `${String(startHour).padStart(2, '0')}:${String(startMin).padStart(2, '0')}`;
+    const newEndTime = `${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}`;
+    
     // Update the placed tile
     setPlacedTiles(prev => prev.map(t => t.id === editingTile.id ? {
       ...t,
       courseName: editTileData.courseName.trim(),
       section: editTileData.section.trim(),
       teacher: editTileData.teacher.trim(),
-      startTime: editTileData.startTime,
-      endTime: editTileData.endTime,
+      startTime: newStartTime,
+      endTime: newEndTime,
       duration: newDuration,
       color: tileColor,
-      originalDuration: t.originalDuration || oldDuration, // Store original duration
+      originalDuration: t.originalDuration || oldDuration,
       subjectType: editTileData.subjectType,
       labType: editTileData.labType,
       isAsynchronous: editTileData.isAsynchronous
@@ -1039,20 +1050,45 @@ const Timetable = () => {
               teacher: e.target.value
             }))} placeholder="e.g., J. DE GUZMAN" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Start Time</label>
-                <Input type="time" value={editTileData.startTime} onChange={e => setEditTileData(prev => ({
-                ...prev,
-                startTime: e.target.value
-              }))} />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">End Time</label>
-                <Input type="time" value={editTileData.endTime} onChange={e => setEditTileData(prev => ({
-                ...prev,
-                endTime: e.target.value
-              }))} />
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Duration</label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-xs text-muted-foreground">Hours</label>
+                  <Select value={editTileData.durationHours.toString()} onValueChange={val => setEditTileData(prev => ({
+                    ...prev,
+                    durationHours: parseInt(val)
+                  }))}>
+                    <SelectTrigger className="bg-background">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background">
+                      {[0, 1, 2, 3, 4, 5, 6].map(h => (
+                        <SelectItem key={h} value={h.toString()}>
+                          {h} {h === 1 ? 'hour' : 'hours'}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs text-muted-foreground">Minutes</label>
+                  <Select value={editTileData.durationMinutes.toString()} onValueChange={val => setEditTileData(prev => ({
+                    ...prev,
+                    durationMinutes: parseInt(val)
+                  }))}>
+                    <SelectTrigger className="bg-background">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background">
+                      {[0, 30].map(m => (
+                        <SelectItem key={m} value={m.toString()}>
+                          {m} min
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
             <div className="space-y-2">
