@@ -24,9 +24,9 @@ export const loadUserTiles = async (userId: string): Promise<CourseTile[]> => {
     color: row.color,
     splitFromId: row.split_from_id,
     originalDuration: row.original_duration,
-    subjectType: row.subject_type as 'Lec' | 'Lab',
-    labType: row.lab_type as 'Kitchen Laboratory' | 'Computer Laboratory',
-    isAsynchronous: row.is_asynchronous
+    subjectType: (row.subject_type || 'Lec') as 'Lec' | 'Lab',
+    labType: (row.lab_type || 'Computer Laboratory') as 'Kitchen Laboratory' | 'Computer Laboratory',
+    isAsynchronous: row.is_asynchronous || false
   }));
 };
 
@@ -93,9 +93,9 @@ export const loadPlacedTiles = async (userId: string): Promise<PlacedTile[]> => 
     slotIndex: row.slot_index,
     splitFromId: row.split_from_id,
     originalDuration: row.original_duration,
-    subjectType: row.subject_type as 'Lec' | 'Lab',
-    labType: row.lab_type as 'Kitchen Laboratory' | 'Computer Laboratory',
-    isAsynchronous: row.is_asynchronous
+    subjectType: (row.subject_type || 'Lec') as 'Lec' | 'Lab',
+    labType: (row.lab_type || 'Computer Laboratory') as 'Kitchen Laboratory' | 'Computer Laboratory',
+    isAsynchronous: row.is_asynchronous || false
   }));
 };
 

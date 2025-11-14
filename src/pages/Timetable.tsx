@@ -549,6 +549,8 @@ const Timetable = () => {
                 endTime: `${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}`,
                 duration: duration || 2,
                 color: '#10b981', // Default light green
+                subjectType: 'Lec',
+                labType: 'Computer Laboratory',
                 isAsynchronous: false
               });
             }
