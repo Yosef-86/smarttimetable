@@ -15,9 +15,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { AccountSettings } from "@/components/AccountSettings";
+import { loadUserTiles, saveUserTiles, loadPlacedTiles, savePlacedTiles, loadUserRooms, saveUserRooms, saveSavedSchedules } from "@/utils/databaseHelpers";
 
 const Timetable = () => {
   const navigate = useNavigate();
+  const [userId, setUserId] = useState<string>("");
   const [userEmail, setUserEmail] = useState<string>("");
   const [showAccountSettings, setShowAccountSettings] = useState(false);
   const [currentDay, setCurrentDay] = useState(DAYS[0]);
@@ -59,12 +61,13 @@ const Timetable = () => {
     slotIndex: number;
   } | null>(null);
 
-  // Check authentication
+  // Check authentication and load user ID
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
         navigate("/auth");
       } else {
+        setUserId(session.user.id);
         setUserEmail(session.user.email || "");
       }
     });
@@ -73,6 +76,7 @@ const Timetable = () => {
       if (!session) {
         navigate("/auth");
       } else {
+        setUserId(session.user.id);
         setUserEmail(session.user.email || "");
       }
     });
@@ -90,50 +94,57 @@ const Timetable = () => {
     }
   };
 
-  // Load data from localStorage on mount
+  // Load data from database on mount
   useEffect(() => {
-    const savedTiles = localStorage.getItem("uploadedTiles");
-    if (savedTiles) {
+    if (!userId) return;
+
+    const loadData = async () => {
       try {
-        const tiles = JSON.parse(savedTiles);
+        const [tiles, placedTiles, rooms] = await Promise.all([
+          loadUserTiles(userId),
+          loadPlacedTiles(userId),
+          loadUserRooms(userId)
+        ]);
+        
         setAvailableTiles(tiles);
+        setPlacedTiles(placedTiles);
+        if (rooms.length > 0) {
+          setRooms(rooms);
+        }
       } catch (error) {
-        console.error("Failed to load saved tiles:", error);
+        console.error("Failed to load data:", error);
+        toast.error("Failed to load your data");
       }
-    }
-    const savedPlacedTiles = localStorage.getItem("placedTiles");
-    if (savedPlacedTiles) {
-      try {
-        const tiles = JSON.parse(savedPlacedTiles);
-        setPlacedTiles(tiles);
-      } catch (error) {
-        console.error("Failed to load placed tiles:", error);
-      }
-    }
-    const savedRooms = localStorage.getItem("customRooms");
-    if (savedRooms) {
-      try {
-        const roomsList = JSON.parse(savedRooms);
-        setRooms(roomsList);
-      } catch (error) {
-        console.error("Failed to load rooms:", error);
-      }
-    }
-  }, []);
+    };
+
+    loadData();
+  }, [userId]);
 
   // Save placed tiles whenever they change
   useEffect(() => {
-    if (placedTiles.length > 0) {
-      localStorage.setItem("placedTiles", JSON.stringify(placedTiles));
-    }
-  }, [placedTiles]);
+    if (!userId || placedTiles.length === 0) return;
+    
+    const timeoutId = setTimeout(() => {
+      savePlacedTiles(userId, placedTiles).catch(error => {
+        console.error("Failed to save placed tiles:", error);
+      });
+    }, 500); // Debounce saves
+
+    return () => clearTimeout(timeoutId);
+  }, [placedTiles, userId]);
 
   // Save rooms whenever they change
   useEffect(() => {
-    if (rooms.length > 0) {
-      localStorage.setItem("customRooms", JSON.stringify(rooms));
-    }
-  }, [rooms]);
+    if (!userId || rooms.length === 0) return;
+
+    const timeoutId = setTimeout(() => {
+      saveUserRooms(userId, rooms).catch(error => {
+        console.error("Failed to save rooms:", error);
+      });
+    }, 500); // Debounce saves
+
+    return () => clearTimeout(timeoutId);
+  }, [rooms, userId]);
   const handleDragStart = (tile: CourseTile) => {
     setDraggingTile(tile);
     setIsDragging(true);
@@ -143,19 +154,31 @@ const Timetable = () => {
     setIsDragging(false);
   };
 
-  const handleDeleteTile = (tileId: string) => {
-    setAvailableTiles(prev => {
-      const updatedTiles = prev.filter(t => t.id !== tileId);
-      localStorage.setItem("uploadedTiles", JSON.stringify(updatedTiles));
-      return updatedTiles;
-    });
-    toast.success("Tile deleted");
+  const handleDeleteTile = async (tileId: string) => {
+    const updatedTiles = availableTiles.filter(t => t.id !== tileId);
+    setAvailableTiles(updatedTiles);
+    
+    if (userId) {
+      try {
+        await saveUserTiles(userId, updatedTiles);
+        toast.success("Tile deleted");
+      } catch (error) {
+        toast.error("Failed to delete tile");
+      }
+    }
   };
 
-  const handleDeleteAllTiles = () => {
+  const handleDeleteAllTiles = async () => {
     setAvailableTiles([]);
-    localStorage.setItem("uploadedTiles", JSON.stringify([]));
-    toast.success("All tiles deleted");
+    
+    if (userId) {
+      try {
+        await saveUserTiles(userId, []);
+        toast.success("All tiles deleted");
+      } catch (error) {
+        toast.error("Failed to delete tiles");
+      }
+    }
   };
 
   const handleDropTile = (room: string, slotIndex: number) => {
@@ -300,8 +323,12 @@ const Timetable = () => {
       const updatedAvailableTiles = availableTiles.filter(t => t.id !== draggingTile.id);
       setAvailableTiles(updatedAvailableTiles);
 
-      // Update localStorage
-      localStorage.setItem("uploadedTiles", JSON.stringify(updatedAvailableTiles));
+      // Save to database
+      if (userId) {
+        saveUserTiles(userId, updatedAvailableTiles).catch(error => {
+          console.error("Failed to save tiles:", error);
+        });
+      }
     }
     setDraggingTile(null);
     setIsDragging(false);
@@ -328,7 +355,13 @@ const Timetable = () => {
     // Remove the new tile from available tiles if it's not already placed
     const updatedAvailableTiles = availableTiles.filter(t => t.id !== newTile.id);
     setAvailableTiles(updatedAvailableTiles);
-    localStorage.setItem("uploadedTiles", JSON.stringify(updatedAvailableTiles));
+    
+    // Save to database
+    if (userId) {
+      saveUserTiles(userId, updatedAvailableTiles).catch(error => {
+        console.error("Failed to save tiles:", error);
+      });
+    }
 
     toast.success("Tiles merged successfully!");
     setMergeDialogOpen(false);
@@ -397,11 +430,11 @@ const Timetable = () => {
     setRooms(prev => prev.filter(r => r !== room));
     toast.success(`Room "${room}" deleted`);
   };
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = e => {
+    reader.onload = async (e) => {
       try {
         const data = e.target?.result;
         const workbook = XLSX.read(data, {
@@ -523,8 +556,12 @@ const Timetable = () => {
         });
         const tiles = Array.from(coursesMap.values());
         setAvailableTiles(tiles);
-        // Save to localStorage for persistence
-        localStorage.setItem("uploadedTiles", JSON.stringify(tiles));
+        
+        // Save to database
+        if (userId) {
+          await saveUserTiles(userId, tiles);
+        }
+        
         toast.success(`Loaded ${tiles.length} courses from Excel file`);
       } catch (error) {
         toast.error("Failed to parse Excel file. Please check the format.");
@@ -533,60 +570,68 @@ const Timetable = () => {
     };
     reader.readAsBinaryString(file);
   };
-  const handleSave = () => {
+  const handleSave = async () => {
     if (placedTiles.length === 0) {
       toast.error("Please add some courses to the timetable first");
       return;
     }
 
-    // Store timetable data
-    localStorage.setItem("timetableData", JSON.stringify(placedTiles));
+    if (!userId) {
+      toast.error("Please log in to save your timetable");
+      return;
+    }
 
-    // Auto-save room schedules (one per room)
-    const uniqueRooms = Array.from(new Set(placedTiles.map(t => t.room).filter(r => r && r.trim() !== "")));
-    const roomSchedules = uniqueRooms.map(room => ({
-      id: `room-${room}-${Date.now()}`,
-      name: room,
-      type: 'room' as const,
-      tiles: placedTiles.filter(t => t.room === room),
-      createdAt: new Date()
-    }));
+    try {
+      // Auto-save room schedules (one per room)
+      const uniqueRooms = Array.from(new Set(placedTiles.map(t => t.room).filter(r => r && r.trim() !== "")));
+      const roomSchedules = uniqueRooms.map(room => ({
+        id: `room-${room}-${Date.now()}`,
+        name: room,
+        type: 'room' as const,
+        tiles: placedTiles.filter(t => t.room === room),
+        createdAt: new Date()
+      }));
 
-    // Auto-save teacher schedules
-    const uniqueTeachers = Array.from(new Set(placedTiles.map(t => t.teacher).filter(t => t && t.trim() !== "")));
-    const teacherSchedules = uniqueTeachers.map(teacher => ({
-      id: `teacher-${teacher}-${Date.now()}`,
-      name: teacher,
-      type: 'teacher' as const,
-      tiles: placedTiles.filter(t => t.teacher === teacher),
-      createdAt: new Date()
-    }));
+      // Auto-save teacher schedules
+      const uniqueTeachers = Array.from(new Set(placedTiles.map(t => t.teacher).filter(t => t && t.trim() !== "")));
+      const teacherSchedules = uniqueTeachers.map(teacher => ({
+        id: `teacher-${teacher}-${Date.now()}`,
+        name: teacher,
+        type: 'teacher' as const,
+        tiles: placedTiles.filter(t => t.teacher === teacher),
+        createdAt: new Date()
+      }));
 
-    // Auto-save section schedules - include merged tiles in each section
-    const allSections = new Set<string>();
-    placedTiles.forEach(tile => {
-      // Handle merged sections (e.g., "CS 101, ACT 101" or "CS 101/ACT 101")
-      const sections = tile.section.split(/[\/,]+/).map(s => s.trim()).filter(s => s !== "");
-      sections.forEach(s => allSections.add(s));
-    });
-    
-    const sectionSchedules = Array.from(allSections).map(section => ({
-      id: `section-${section}-${Date.now()}`,
-      name: section,
-      type: 'section' as const,
-      tiles: placedTiles.filter(t => {
-        const sections = t.section.split(/[\/,]+/).map(s => s.trim());
-        return sections.includes(section);
-      }),
-      createdAt: new Date()
-    }));
+      // Auto-save section schedules - include merged tiles in each section
+      const allSections = new Set<string>();
+      placedTiles.forEach(tile => {
+        // Handle merged sections (e.g., "CS 101, ACT 101" or "CS 101/ACT 101")
+        const sections = tile.section.split(/[\/,]+/).map(s => s.trim()).filter(s => s !== "");
+        sections.forEach(s => allSections.add(s));
+      });
+      
+      const sectionSchedules = Array.from(allSections).map(section => ({
+        id: `section-${section}-${Date.now()}`,
+        name: section,
+        type: 'section' as const,
+        tiles: placedTiles.filter(t => {
+          const sections = t.section.split(/[\/,]+/).map(s => s.trim());
+          return sections.includes(section);
+        }),
+        createdAt: new Date()
+      }));
 
-    // Combine all schedules
-    const allSchedules = [...roomSchedules, ...teacherSchedules, ...sectionSchedules];
-    localStorage.setItem("savedSchedules", JSON.stringify(allSchedules));
-    toast.success(`Timetable saved! ${roomSchedules.length} rooms, ${teacherSchedules.length} teachers, ${sectionSchedules.length} sections`);
+      // Combine all schedules
+      const allSchedules = [...roomSchedules, ...teacherSchedules, ...sectionSchedules];
+      await saveSavedSchedules(userId, allSchedules);
+      
+      toast.success(`Timetable saved! ${roomSchedules.length} rooms, ${teacherSchedules.length} teachers, ${sectionSchedules.length} sections`);
+    } catch (error) {
+      console.error("Failed to save timetable:", error);
+      toast.error("Failed to save timetable");
+    }
   };
-  const handleReset = () => {
+  const handleReset = async () => {
     if (confirm("Are you sure you want to reset everything? This will return all placed tiles to the sidebar.")) {
       // Return placed tiles to available tiles
       setAvailableTiles(prev => [...prev, ...placedTiles]);
@@ -595,14 +640,22 @@ const Timetable = () => {
       setPlacedTiles([]);
       setRooms(DEFAULT_ROOMS);
 
-      // Clear localStorage
-      localStorage.removeItem("placedTiles");
-      localStorage.removeItem("customRooms");
-      localStorage.removeItem("timetableData");
-      toast.success("All tiles returned to sidebar!");
+      // Clear database
+      if (userId) {
+        try {
+          await Promise.all([
+            savePlacedTiles(userId, []),
+            saveUserRooms(userId, DEFAULT_ROOMS)
+          ]);
+          toast.success("All tiles returned to sidebar!");
+        } catch (error) {
+          console.error("Failed to reset:", error);
+          toast.error("Failed to reset");
+        }
+      }
     }
   };
-  const handleAddTile = () => {
+  const handleAddTile = async () => {
     if (!newTile.courseName.trim()) {
       toast.error("Course name is required");
       return;
@@ -636,9 +689,12 @@ const Timetable = () => {
     };
     setAvailableTiles(prev => [...prev, tile]);
 
-    // Update localStorage
-    const updatedTiles = [...availableTiles, tile];
-    localStorage.setItem("uploadedTiles", JSON.stringify(updatedTiles));
+    // Save to database
+    if (userId) {
+      const updatedTiles = [...availableTiles, tile];
+      await saveUserTiles(userId, updatedTiles);
+    }
+    
     toast.success(`Tile "${tile.courseName}" added successfully`);
 
     // Reset form
@@ -705,7 +761,7 @@ const Timetable = () => {
       setIsEditTileOpen(true);
     }
   };
-  const handleSaveEditTile = () => {
+  const handleSaveEditTile = async () => {
     if (!editingTile) return;
     if (!editTileData.courseName.trim()) {
       toast.error("Course name is required");
@@ -748,7 +804,12 @@ const Timetable = () => {
           : t
       );
       setAvailableTiles(updatedTiles);
-      localStorage.setItem("uploadedTiles", JSON.stringify(updatedTiles));
+      
+      // Save to database
+      if (userId) {
+        await saveUserTiles(userId, updatedTiles);
+      }
+      
       setIsEditTileOpen(false);
       setEditingTile(null);
       toast.success("Tile updated successfully");
@@ -802,14 +863,24 @@ const Timetable = () => {
       // Add to available tiles
       const updatedAvailableTiles = [...availableTiles, remainingTile];
       setAvailableTiles(updatedAvailableTiles);
-      localStorage.setItem("uploadedTiles", JSON.stringify(updatedAvailableTiles));
+      
+      // Save to database
+      if (userId) {
+        await saveUserTiles(userId, updatedAvailableTiles);
+      }
+      
       toast.success(`Tile updated! Remaining ${remainingDuration * 30} minutes sent to sidebar`);
     } else if (newDuration >= originalDuration) {
       // Duration restored to original or larger - remove any split tiles
       const updatedAvailableTiles = availableTiles.filter(t => t.splitFromId !== editingTile.id);
       if (updatedAvailableTiles.length < availableTiles.length) {
         setAvailableTiles(updatedAvailableTiles);
-        localStorage.setItem("uploadedTiles", JSON.stringify(updatedAvailableTiles));
+        
+        // Save to database
+        if (userId) {
+          await saveUserTiles(userId, updatedAvailableTiles);
+        }
+        
         toast.success("Tile restored to full duration! Split tiles removed from sidebar");
       }
     }

@@ -6,6 +6,8 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { TIME_SLOTS, DAYS } from "@/utils/scheduleData";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { supabase } from "@/integrations/supabase/client";
+import { loadSavedSchedules, deleteSavedSchedule, loadUserRooms } from "@/utils/databaseHelpers";
 import {
   Card,
   CardContent,
@@ -23,29 +25,55 @@ import {
 
 const SavedSchedules = () => {
   const navigate = useNavigate();
+  const [userId, setUserId] = useState<string>("");
   const [savedSchedules, setSavedSchedules] = useState<SavedSchedule[]>([]);
   const [viewingSchedule, setViewingSchedule] = useState<SavedSchedule | null>(null);
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const [activeTab, setActiveTab] = useState<string>("room");
   const [allRooms, setAllRooms] = useState<string[]>([]);
 
+  // Check authentication and load user ID
   useEffect(() => {
-    const saved = localStorage.getItem("savedSchedules");
-    if (saved) {
-      setSavedSchedules(JSON.parse(saved));
-    }
-    
-    // Load all rooms from localStorage
-    const savedRooms = localStorage.getItem("customRooms");
-    if (savedRooms) {
-      try {
-        const roomsList = JSON.parse(savedRooms);
-        setAllRooms(roomsList);
-      } catch (error) {
-        console.error("Failed to load rooms:", error);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        navigate("/auth");
+      } else {
+        setUserId(session.user.id);
       }
-    }
-  }, []);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) {
+        navigate("/auth");
+      } else {
+        setUserId(session.user.id);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  // Load data from database when userId is available
+  useEffect(() => {
+    if (!userId) return;
+
+    const loadData = async () => {
+      try {
+        const [schedules, rooms] = await Promise.all([
+          loadSavedSchedules(userId),
+          loadUserRooms(userId)
+        ]);
+        
+        setSavedSchedules(schedules);
+        setAllRooms(rooms);
+      } catch (error) {
+        console.error("Failed to load data:", error);
+        toast.error("Failed to load your schedules");
+      }
+    };
+
+    loadData();
+  }, [userId]);
 
   // Filter schedules by type
   const teacherSchedules = savedSchedules.filter(s => s.type === 'teacher');
@@ -86,13 +114,21 @@ const SavedSchedules = () => {
     window.print();
   };
 
-  const handleDeleteSchedule = (scheduleId: string) => {
-    const updated = savedSchedules.filter(s => s.id !== scheduleId);
-    setSavedSchedules(updated);
-    localStorage.setItem("savedSchedules", JSON.stringify(updated));
-    toast.success("Schedule deleted");
-    if (viewingSchedule?.id === scheduleId) {
-      setViewingSchedule(null);
+  const handleDeleteSchedule = async (scheduleId: string) => {
+    if (!userId) return;
+
+    try {
+      await deleteSavedSchedule(userId, scheduleId);
+      const updated = savedSchedules.filter(s => s.id !== scheduleId);
+      setSavedSchedules(updated);
+      toast.success("Schedule deleted");
+      
+      if (viewingSchedule?.id === scheduleId) {
+        setViewingSchedule(null);
+      }
+    } catch (error) {
+      console.error("Failed to delete schedule:", error);
+      toast.error("Failed to delete schedule");
     }
   };
 
@@ -101,15 +137,26 @@ const SavedSchedules = () => {
     const isExpanded = expandedFolders[folderKey];
     const totalClasses = schedules.reduce((sum, s) => sum + s.tiles.length, 0);
 
-    const handleDeleteFolder = (e: React.MouseEvent) => {
+    const handleDeleteFolder = async (e: React.MouseEvent) => {
       e.stopPropagation();
-      const scheduleIds = schedules.map(s => s.id);
-      const updated = savedSchedules.filter(s => !scheduleIds.includes(s.id));
-      setSavedSchedules(updated);
-      localStorage.setItem("savedSchedules", JSON.stringify(updated));
-      toast.success(`Deleted ${schedules.length} schedule${schedules.length > 1 ? 's' : ''}`);
-      if (viewingSchedule && scheduleIds.includes(viewingSchedule.id)) {
-        setViewingSchedule(null);
+      
+      if (!userId) return;
+
+      try {
+        const scheduleIds = schedules.map(s => s.id);
+        
+        // Delete all schedules in the folder
+        await Promise.all(scheduleIds.map(id => deleteSavedSchedule(userId, id)));
+        
+        const updated = savedSchedules.filter(s => !scheduleIds.includes(s.id));
+        setSavedSchedules(updated);
+        toast.success(`Deleted ${schedules.length} schedule${schedules.length > 1 ? 's' : ''}`);
+        if (viewingSchedule && scheduleIds.includes(viewingSchedule.id)) {
+          setViewingSchedule(null);
+        }
+      } catch (error) {
+        console.error("Failed to delete folder:", error);
+        toast.error("Failed to delete schedules");
       }
     };
 
