@@ -33,14 +33,9 @@ const Landing = () => {
               </p>
             </div>
 
-            <div className="flex gap-4">
-              <Button size="lg" onClick={() => navigate("/auth")} className="text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
-                Get Started
-              </Button>
-              <Button size="lg" onClick={() => navigate("/dashboard")} variant="outline" className="text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
-                View Dashboard
-              </Button>
-            </div>
+            <Button size="lg" onClick={() => navigate("/auth")} className="text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+              Get Started
+            </Button>
 
             <div className="flex gap-6 pt-4">
               <div className="flex items-center gap-2 text-muted-foreground">
