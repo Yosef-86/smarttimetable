@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Calendar, ArrowLeft } from "lucide-react";
+import { Calendar, ArrowLeft, Eye, EyeOff, CheckCircle2, XCircle } from "lucide-react";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -16,6 +16,20 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const passwordRequirements = {
+    minLength: password.length >= 8,
+    hasUpperCase: /[A-Z]/.test(password),
+    hasLowerCase: /[a-z]/.test(password),
+    hasNumber: /[0-9]/.test(password),
+    hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+  };
+
+  const isPasswordValid = Object.values(passwordRequirements).every(Boolean);
+  const passwordsMatch = password === confirmPassword && confirmPassword !== "";
 
   useEffect(() => {
     // Check if user is already logged in
@@ -37,6 +51,25 @@ const Auth = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!isPasswordValid) {
+      toast({
+        title: "Password does not meet requirements",
+        description: "Please ensure your password meets all the requirements listed below.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast({
+        title: "Passwords do not match",
+        description: "Please make sure both passwords are the same.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -193,17 +226,75 @@ const Auth = () => {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="signup-password">Password</Label>
-                      <Input
-                        id="signup-password"
-                        type="password"
-                        placeholder="••••••••"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        minLength={6}
-                      />
+                      <div className="relative">
+                        <Input
+                          id="signup-password"
+                          type={showPassword ? "text" : "password"}
+                          placeholder="••••••••"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          required
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      <div className="text-xs space-y-1 mt-2">
+                        <div className={`flex items-center gap-1 ${passwordRequirements.minLength ? 'text-green-600' : 'text-muted-foreground'}`}>
+                          {passwordRequirements.minLength ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                          <span>At least 8 characters</span>
+                        </div>
+                        <div className={`flex items-center gap-1 ${passwordRequirements.hasUpperCase ? 'text-green-600' : 'text-muted-foreground'}`}>
+                          {passwordRequirements.hasUpperCase ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                          <span>One uppercase letter</span>
+                        </div>
+                        <div className={`flex items-center gap-1 ${passwordRequirements.hasLowerCase ? 'text-green-600' : 'text-muted-foreground'}`}>
+                          {passwordRequirements.hasLowerCase ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                          <span>One lowercase letter</span>
+                        </div>
+                        <div className={`flex items-center gap-1 ${passwordRequirements.hasNumber ? 'text-green-600' : 'text-muted-foreground'}`}>
+                          {passwordRequirements.hasNumber ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                          <span>One number</span>
+                        </div>
+                        <div className={`flex items-center gap-1 ${passwordRequirements.hasSpecial ? 'text-green-600' : 'text-muted-foreground'}`}>
+                          {passwordRequirements.hasSpecial ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                          <span>One special character</span>
+                        </div>
+                      </div>
                     </div>
-                    <Button type="submit" className="w-full" disabled={loading}>
+                    <div className="space-y-2">
+                      <Label htmlFor="confirm-password">Confirm Password</Label>
+                      <div className="relative">
+                        <Input
+                          id="confirm-password"
+                          type={showConfirmPassword ? "text" : "password"}
+                          placeholder="••••••••"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          required
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      {confirmPassword && (
+                        <div className={`flex items-center gap-1 text-xs ${passwordsMatch ? 'text-green-600' : 'text-destructive'}`}>
+                          {passwordsMatch ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                          <span>{passwordsMatch ? 'Passwords match' : 'Passwords do not match'}</span>
+                        </div>
+                      )}
+                    </div>
+                    <Button type="submit" className="w-full" disabled={loading || !isPasswordValid || !passwordsMatch}>
                       {loading ? "Creating account..." : "Sign Up"}
                     </Button>
                   </form>
