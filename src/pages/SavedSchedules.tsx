@@ -553,13 +553,6 @@ const SavedSchedules = () => {
               <p className="text-base font-semibold text-gray-800">{viewingSchedule.name}</p>
             </>
           )}
-          <p className="text-sm text-gray-600 mt-1">
-            Created: {new Date(viewingSchedule.createdAt).toLocaleDateString('en-US', { 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
-            })}
-          </p>
         </div>
 
         <div className="container mx-auto px-4 py-8 print:px-2 print:py-0">
