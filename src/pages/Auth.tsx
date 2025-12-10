@@ -75,7 +75,7 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -99,6 +99,14 @@ const Auth = () => {
             variant: "destructive"
           });
         }
+      } else if (data.user && data.user.identities && data.user.identities.length === 0) {
+        // Email already exists - Supabase returns user with empty identities
+        setEmailAlreadyExists(true);
+        toast({
+          title: "Email already registered",
+          description: "This email is already in use. Please try a different email or sign in.",
+          variant: "destructive"
+        });
       } else {
         toast({
           title: "Check your email!",
