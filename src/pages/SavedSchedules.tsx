@@ -22,6 +22,16 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const SavedSchedules = () => {
   const navigate = useNavigate();
@@ -31,6 +41,8 @@ const SavedSchedules = () => {
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const [activeTab, setActiveTab] = useState<string>("room");
   const [allRooms, setAllRooms] = useState<string[]>([]);
+  const [scheduleToDelete, setScheduleToDelete] = useState<string | null>(null);
+  const [folderToDelete, setFolderToDelete] = useState<SavedSchedule[] | null>(null);
 
   // Check authentication and load user ID
   useEffect(() => {
@@ -130,35 +142,35 @@ const SavedSchedules = () => {
       console.error("Failed to delete schedule:", error);
       toast.error("Failed to delete schedule");
     }
+    setScheduleToDelete(null);
+  };
+
+  const handleDeleteFolder = async (schedules: SavedSchedule[]) => {
+    if (!userId) return;
+
+    try {
+      const scheduleIds = schedules.map(s => s.id);
+      
+      // Delete all schedules in the folder
+      await Promise.all(scheduleIds.map(id => deleteSavedSchedule(userId, id)));
+      
+      const updated = savedSchedules.filter(s => !scheduleIds.includes(s.id));
+      setSavedSchedules(updated);
+      toast.success(`Deleted ${schedules.length} schedule${schedules.length > 1 ? 's' : ''}`);
+      if (viewingSchedule && scheduleIds.includes(viewingSchedule.id)) {
+        setViewingSchedule(null);
+      }
+    } catch (error) {
+      console.error("Failed to delete folder:", error);
+      toast.error("Failed to delete schedules");
+    }
+    setFolderToDelete(null);
   };
 
   const renderDateFolder = (date: string, schedules: SavedSchedule[], Icon: any, iconColor: string) => {
     const folderKey = `date-folder-${date}`;
     const isExpanded = expandedFolders[folderKey];
     const totalClasses = schedules.reduce((sum, s) => sum + s.tiles.length, 0);
-
-    const handleDeleteFolder = async (e: React.MouseEvent) => {
-      e.stopPropagation();
-      
-      if (!userId) return;
-
-      try {
-        const scheduleIds = schedules.map(s => s.id);
-        
-        // Delete all schedules in the folder
-        await Promise.all(scheduleIds.map(id => deleteSavedSchedule(userId, id)));
-        
-        const updated = savedSchedules.filter(s => !scheduleIds.includes(s.id));
-        setSavedSchedules(updated);
-        toast.success(`Deleted ${schedules.length} schedule${schedules.length > 1 ? 's' : ''}`);
-        if (viewingSchedule && scheduleIds.includes(viewingSchedule.id)) {
-          setViewingSchedule(null);
-        }
-      } catch (error) {
-        console.error("Failed to delete folder:", error);
-        toast.error("Failed to delete schedules");
-      }
-    };
 
     return (
       <Card key={folderKey} className="hover:shadow-lg transition-shadow">
@@ -182,7 +194,10 @@ const SavedSchedules = () => {
               <Button
                 variant="destructive"
                 size="icon"
-                onClick={handleDeleteFolder}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setFolderToDelete(schedules);
+                }}
               >
                 <Trash2 className="w-4 h-4" />
               </Button>
@@ -217,7 +232,7 @@ const SavedSchedules = () => {
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDeleteSchedule(schedule.id);
+                        setScheduleToDelete(schedule.id);
                       }}
                     >
                       <Trash2 className="w-4 h-4 mr-1" />
@@ -543,6 +558,48 @@ const SavedSchedules = () => {
             )}
           </TabsContent>
         </Tabs>
+
+        {/* Delete Schedule Confirmation Dialog */}
+        <AlertDialog open={!!scheduleToDelete} onOpenChange={(open) => !open && setScheduleToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Schedule</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this schedule? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => scheduleToDelete && handleDeleteSchedule(scheduleToDelete)}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete Folder Confirmation Dialog */}
+        <AlertDialog open={!!folderToDelete} onOpenChange={(open) => !open && setFolderToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete All Schedules in Folder</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete {folderToDelete?.length} schedule{(folderToDelete?.length || 0) > 1 ? 's' : ''}? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => folderToDelete && handleDeleteFolder(folderToDelete)}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete All
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
