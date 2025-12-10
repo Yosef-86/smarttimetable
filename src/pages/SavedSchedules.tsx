@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { PlacedTile, SavedSchedule } from "@/types/schedule";
-import { ArrowLeft, Printer, Download, UserCircle, Users, DoorOpen, Eye, Trash2, Folder, ChevronDown, ChevronRight } from "lucide-react";
+import { ArrowLeft, Printer, Download, UserCircle, Users, DoorOpen, Eye, Trash2, Folder, ChevronDown, ChevronRight, FileText, Filter, HelpCircle } from "lucide-react";
+import { Tutorial, TutorialStep } from "@/components/Tutorial";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { TIME_SLOTS, DAYS } from "@/utils/scheduleData";
@@ -43,6 +44,40 @@ const SavedSchedules = () => {
   const [allRooms, setAllRooms] = useState<string[]>([]);
   const [scheduleToDelete, setScheduleToDelete] = useState<string | null>(null);
   const [folderToDelete, setFolderToDelete] = useState<SavedSchedule[] | null>(null);
+
+  // Tutorial steps for Saved Schedules
+  const savedSchedulesTutorialSteps: TutorialStep[] = [
+    {
+      title: "Welcome to Saved Schedules",
+      description: "This page displays all your saved timetables organized by type. You can view, print, and manage your schedules here.",
+      icon: <FileText className="w-6 h-6 text-primary" />
+    },
+    {
+      title: "Schedule Categories",
+      description: "Schedules are organized into three tabs: Room Schedules, Teacher Schedules, and Section Schedules. Click on a tab to switch between views.",
+      icon: <Filter className="w-6 h-6 text-primary" />
+    },
+    {
+      title: "Date Folders",
+      description: "Schedules are grouped by the date they were created. Click on a folder to expand it and see all schedules from that date.",
+      icon: <Folder className="w-6 h-6 text-primary" />
+    },
+    {
+      title: "Viewing Schedules",
+      description: "Click the 'View' button on any schedule to see its full timetable grid. The grid shows all classes for that teacher, section, or room.",
+      icon: <Eye className="w-6 h-6 text-primary" />
+    },
+    {
+      title: "Printing Schedules",
+      description: "When viewing a schedule, use the Print button to print it. The layout is optimized for landscape orientation to fit all time slots.",
+      icon: <Printer className="w-6 h-6 text-primary" />
+    },
+    {
+      title: "Deleting Schedules",
+      description: "You can delete individual schedules or entire date folders. A confirmation dialog will appear before deletion to prevent accidents.",
+      icon: <Trash2 className="w-6 h-6 text-primary" />
+    }
+  ];
 
   // Check authentication and load user ID
   useEffect(() => {
@@ -500,7 +535,14 @@ const SavedSchedules = () => {
               </Button>
               <h1 className="text-2xl font-bold">Saved Schedules</h1>
             </div>
-            <ThemeToggle />
+            <div className="flex items-center gap-3">
+              <Tutorial 
+                steps={savedSchedulesTutorialSteps} 
+                storageKey="saved-schedules-tutorial-seen" 
+                title="Saved Schedules Tutorial" 
+              />
+              <ThemeToggle />
+            </div>
           </div>
         </div>
       </div>
