@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 interface TileSidebarProps {
   tiles: CourseTile[];
   onDragStart: (tile: CourseTile) => void;
@@ -49,6 +49,8 @@ export const TileSidebar = ({
   onAddTile,
   onEditSidebarTile
 }: TileSidebarProps) => {
+  const [tileToDelete, setTileToDelete] = useState<CourseTile | null>(null);
+
   const teachers = useMemo(() => {
     const uniqueTeachers = Array.from(new Set(tiles.map(t => t.teacher).filter(Boolean)));
     return uniqueTeachers.sort();
@@ -275,7 +277,7 @@ export const TileSidebar = ({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onDeleteTile(tile.id);
+                    setTileToDelete(tile);
                   }}
                   className="absolute top-2 left-2 w-6 h-6 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors z-10"
                 >
@@ -304,5 +306,31 @@ export const TileSidebar = ({
               </div>)}
         </div>
       </ScrollArea>
+
+      {/* Delete Tile Confirmation Dialog */}
+      <AlertDialog open={!!tileToDelete} onOpenChange={(open) => !open && setTileToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Tile?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{tileToDelete?.courseName}" ({tileToDelete?.section})? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                if (tileToDelete) {
+                  onDeleteTile(tileToDelete.id);
+                  setTileToDelete(null);
+                }
+              }} 
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>;
 };

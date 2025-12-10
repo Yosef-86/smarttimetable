@@ -5,6 +5,7 @@ import { cn, formatDuration } from "@/lib/utils";
 import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface TimetableGridProps {
   day: string;
@@ -43,6 +44,7 @@ export const TimetableGrid = ({
   const [editValue, setEditValue] = useState("");
   const [isAddingRoom, setIsAddingRoom] = useState(false);
   const [newRoomValue, setNewRoomValue] = useState("");
+  const [tileToRemove, setTileToRemove] = useState<PlacedTile | null>(null);
 
   const handleDragOver = (e: React.DragEvent, room: string, slotIndex: number) => {
     e.preventDefault();
@@ -320,7 +322,7 @@ export const TimetableGrid = ({
                               className="absolute top-0.5 right-0.5 h-5 w-5 opacity-0 group-hover/tile:opacity-100 transition-opacity bg-white/20 hover:bg-white/30 text-white"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                onRemoveTile(tile.id);
+                                setTileToRemove(tile);
                               }}
                               onDragStart={(e) => e.preventDefault()}
                             >
@@ -433,6 +435,32 @@ export const TimetableGrid = ({
           </div>
         </div>
       </div>
+
+      {/* Remove Tile Confirmation Dialog */}
+      <AlertDialog open={!!tileToRemove} onOpenChange={(open) => !open && setTileToRemove(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Tile?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove "{tileToRemove?.courseName}" ({tileToRemove?.section}) from the timetable? The tile will be returned to the sidebar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                if (tileToRemove) {
+                  onRemoveTile(tileToRemove.id);
+                  setTileToRemove(null);
+                }
+              }} 
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
