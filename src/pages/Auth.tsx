@@ -8,7 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Calendar, ArrowLeft, Eye, EyeOff, CheckCircle2, XCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Calendar, ArrowLeft, Eye, EyeOff, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ const Auth = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [emailAlreadyExists, setEmailAlreadyExists] = useState(false);
 
   const passwordRequirements = {
     minLength: password.length >= 8,
@@ -82,13 +84,15 @@ const Auth = () => {
       });
 
       if (error) {
-        if (error.message.includes("already registered")) {
+        if (error.message.includes("already registered") || error.message.includes("User already registered")) {
+          setEmailAlreadyExists(true);
           toast({
-            title: "Account already exists",
-            description: "Please sign in instead.",
+            title: "Email already registered",
+            description: "This email is already in use. Please try a different email or sign in.",
             variant: "destructive"
           });
         } else {
+          setEmailAlreadyExists(false);
           toast({
             title: "Error signing up",
             description: error.message,
@@ -213,6 +217,25 @@ const Auth = () => {
 
                 <TabsContent value="signup">
                   <form onSubmit={handleSignUp} className="space-y-4">
+                    {emailAlreadyExists && (
+                      <Alert variant="destructive" className="border-destructive/50 bg-destructive/10">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertDescription>
+                          This email is already registered. Please try a different email or{" "}
+                          <button
+                            type="button"
+                            className="underline font-medium hover:text-destructive"
+                            onClick={() => {
+                              setEmailAlreadyExists(false);
+                              const signinTab = document.querySelector('[data-state="inactive"][value="signin"]') as HTMLButtonElement;
+                              signinTab?.click();
+                            }}
+                          >
+                            sign in instead
+                          </button>.
+                        </AlertDescription>
+                      </Alert>
+                    )}
                     <div className="space-y-2">
                       <Label htmlFor="signup-email">Email</Label>
                       <Input
@@ -220,8 +243,12 @@ const Auth = () => {
                         type="email"
                         placeholder="you@example.com"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          setEmailAlreadyExists(false);
+                        }}
                         required
+                        className={emailAlreadyExists ? "border-destructive" : ""}
                       />
                     </div>
                     <div className="space-y-2">
