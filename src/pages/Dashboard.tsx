@@ -151,7 +151,7 @@ const Dashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold text-foreground">{availableTiles.length}</div>
-                  <p className="text-xs text-muted-foreground mt-1">Course tiles ready</p>
+                  <p className="text-xs text-muted-foreground mt-1">Subject tiles ready</p>
                 </CardContent>
               </Card>
 
