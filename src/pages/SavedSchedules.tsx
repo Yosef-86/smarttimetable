@@ -515,7 +515,23 @@ const SavedSchedules = () => {
           </div>
         </div>
 
-        <div className="container mx-auto px-4 py-8 print:px-2 print:py-4">
+        {/* Print Header - Only visible when printing */}
+        <div className="hidden print:block print:mb-4 print:text-center">
+          <h1 className="text-xl font-bold text-black">
+            {viewingSchedule.type === 'teacher' && `Teacher Schedule: ${viewingSchedule.name}`}
+            {viewingSchedule.type === 'section' && `Section Schedule: ${viewingSchedule.name}`}
+            {viewingSchedule.type === 'room' && `Room Schedule: ${viewingSchedule.name}`}
+          </h1>
+          <p className="text-sm text-gray-600">
+            Created: {new Date(viewingSchedule.createdAt).toLocaleDateString('en-US', { 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric' 
+            })}
+          </p>
+        </div>
+
+        <div className="container mx-auto px-4 py-8 print:px-2 print:py-0">
           {renderTeacherSectionGrid(viewingSchedule.tiles)}
         </div>
       </div>
