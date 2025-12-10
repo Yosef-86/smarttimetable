@@ -902,6 +902,39 @@ const Timetable = () => {
     const oldDuration = editingTile.duration;
     const originalDuration = editingTile.originalDuration || oldDuration;
 
+    // Check if new duration would overlap with another tile below (only for placed tiles)
+    if (newDuration > oldDuration) {
+      const newEndSlot = editingTile.slotIndex + newDuration;
+      const maxSlots = 28; // 8 AM to 10 PM = 14 hours = 28 slots of 30 mins
+      
+      if (newEndSlot > maxSlots) {
+        toast.error("Cannot extend duration beyond operating hours (10 PM)");
+        return;
+      }
+      
+      // Check for overlapping tiles in the same room and day
+      const conflictingTile = placedTiles.find(t => {
+        if (t.id === editingTile.id) return false; // Skip self
+        if (t.room !== editingTile.room || t.day !== editingTile.day) return false;
+        
+        // Check if extending would overlap with this tile
+        const tileStartSlot = t.slotIndex;
+        const tileEndSlot = t.slotIndex + t.duration;
+        const currentEndSlot = editingTile.slotIndex + oldDuration;
+        
+        // Only check tiles that start after current tile ends (tiles below)
+        if (tileStartSlot >= currentEndSlot && tileStartSlot < newEndSlot) {
+          return true;
+        }
+        return false;
+      });
+      
+      if (conflictingTile) {
+        toast.error(`Cannot extend duration - "${conflictingTile.courseName}" is occupying the time slot below`);
+        return;
+      }
+    }
+
     // Check if duration changed and ask for confirmation (only for placed tiles)
     if (newDuration !== oldDuration && !forceAction) {
       setPendingDurationChange({
