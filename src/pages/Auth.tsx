@@ -99,8 +99,12 @@ const Auth = () => {
             variant: "destructive"
           });
         }
-      } else if (data.user && data.user.identities && data.user.identities.length === 0) {
-        // Email already exists - Supabase returns user with empty identities
+      } else if (
+        data.user && 
+        ((data.user.identities && data.user.identities.length === 0) || 
+         data.user.email_confirmed_at !== null)
+      ) {
+        // Email already exists - Supabase returns user with empty identities OR already confirmed email
         setEmailAlreadyExists(true);
         toast({
           title: "Email already registered",
