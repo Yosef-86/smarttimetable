@@ -141,4 +141,21 @@ All colors MUST be HSL.
     grid-template-rows: repeat(24, minmax(0, 1fr)) !important;
     height: calc(100vh - 3cm) !important;
   }
+
+  /* Ensure all table borders are visible */
+  .print\:border,
+  .print\:border-black {
+    border: 1px solid black !important;
+    border-collapse: collapse !important;
+  }
+
+  /* Fix grid border rendering */
+  [class*="grid"] > div {
+    border-color: black !important;
+  }
+
+  /* Ensure last column has right border */
+  .last\:border-r-0 {
+    border-right: 1px solid black !important;
+  }
 }
