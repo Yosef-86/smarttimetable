@@ -45,8 +45,9 @@ const getFullCourseName = (sectionName: string): string => {
     'BSCS': 'Bachelor of Science in Computer Science',
   };
   
-  // Extract course prefix from section name (e.g., "BSIT" from "BSIT-101")
-  const prefix = sectionName.split('-')[0]?.toUpperCase() || '';
+  // Extract course prefix from section name (e.g., "BSIT" from "BSIT-101" or "ACT" from "ACT 201")
+  // Handle both dash and space separators
+  const prefix = sectionName.split(/[-\s]/)[0]?.toUpperCase() || '';
   
   return courseMap[prefix] || sectionName;
 };
