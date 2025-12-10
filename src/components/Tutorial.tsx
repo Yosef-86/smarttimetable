@@ -73,19 +73,9 @@ export const Tutorial = ({ steps, storageKey, title }: TutorialProps) => {
       </Button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg [&>button]:hidden">
           <DialogHeader>
-            <div className="flex items-center justify-between">
-              <DialogTitle className="text-xl">{title}</DialogTitle>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleClose}
-                className="h-8 w-8"
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
+            <DialogTitle className="text-xl">{title}</DialogTitle>
             <DialogDescription>
               Step {currentStep + 1} of {steps.length}
             </DialogDescription>
