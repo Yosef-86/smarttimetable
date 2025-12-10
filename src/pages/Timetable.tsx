@@ -4,7 +4,8 @@ import { TimetableGrid } from "@/components/TimetableGrid";
 import { TileSidebar } from "@/components/TileSidebar";
 import { CourseTile, PlacedTile } from "@/types/schedule";
 import { SAMPLE_TILES, DAYS, ROOMS as DEFAULT_ROOMS } from "@/utils/scheduleData";
-import { ArrowLeft, Save, Upload, Plus, User, LogOut, Settings } from "lucide-react";
+import { ArrowLeft, Save, Upload, Plus, User, LogOut, Settings, GripVertical, MousePointerClick, Clock, Layers, Printer } from "lucide-react";
+import { Tutorial, TutorialStep } from "@/components/Tutorial";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import * as XLSX from 'xlsx';
@@ -66,6 +67,40 @@ const Timetable = () => {
     oldDuration: number;
     originalDuration: number;
   } | null>(null);
+
+  // Tutorial steps for Timetable
+  const timetableTutorialSteps: TutorialStep[] = [
+    {
+      title: "Welcome to Timetable Builder",
+      description: "This is where you create and manage your class schedules. Let's walk through the key features.",
+      icon: <Clock className="w-6 h-6 text-primary" />
+    },
+    {
+      title: "Adding Subject Tiles",
+      description: "Use the sidebar on the left to add new subject tiles. Click 'Add Tile' to create a new subject, or import from an Excel file using the 'Import' button.",
+      icon: <Plus className="w-6 h-6 text-primary" />
+    },
+    {
+      title: "Drag and Drop",
+      description: "Drag tiles from the sidebar and drop them onto the timetable grid. The system will automatically check for conflicts with teachers, sections, and room types.",
+      icon: <GripVertical className="w-6 h-6 text-primary" />
+    },
+    {
+      title: "Editing Tiles",
+      description: "Double-click any tile (in sidebar or on grid) to edit its details. You can change duration, subject type, lab type, and mark it as asynchronous.",
+      icon: <MousePointerClick className="w-6 h-6 text-primary" />
+    },
+    {
+      title: "Merging Sections",
+      description: "Drop a tile with the same course and teacher onto another to merge them. The merged tile will show combined sections (e.g., 'CS 101/ACT 101').",
+      icon: <Layers className="w-6 h-6 text-primary" />
+    },
+    {
+      title: "Saving Schedules",
+      description: "Click the 'Save' button to save your schedule. You can save by teacher, section, or room for easy viewing and printing later.",
+      icon: <Save className="w-6 h-6 text-primary" />
+    }
+  ];
 
   // Check authentication and load user ID
   useEffect(() => {
@@ -1079,6 +1114,11 @@ const Timetable = () => {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              <Tutorial 
+                steps={timetableTutorialSteps} 
+                storageKey="timetable-tutorial-seen" 
+                title="Timetable Tutorial" 
+              />
               <ThemeToggle />
               <label htmlFor="excel-upload">
                 <Button variant="outline" className="gap-2" asChild>

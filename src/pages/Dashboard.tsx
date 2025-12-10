@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
-import { Calendar, Clock, Users, BookOpen, LayoutGrid, Plus, FileText, LogOut, Settings } from "lucide-react";
+import { Calendar, Clock, Users, BookOpen, LayoutGrid, Plus, FileText, LogOut, Settings, BarChart3, FolderOpen, ArrowRight } from "lucide-react";
+import { Tutorial, TutorialStep } from "@/components/Tutorial";
 import { toast } from "sonner";
 import { loadUserTiles, loadPlacedTiles, loadSavedSchedules, loadUserRooms } from "@/utils/databaseHelpers";
 import { CourseTile, PlacedTile, SavedSchedule } from "@/types/schedule";
@@ -84,6 +85,35 @@ const Dashboard = () => {
   const totalSections = new Set(availableTiles.map(t => t.section)).size;
   const scheduledClasses = placedTiles.length;
   const totalHours = placedTiles.reduce((sum, tile) => sum + tile.duration * 0.5, 0);
+
+  // Tutorial steps for Dashboard
+  const dashboardTutorialSteps: TutorialStep[] = [
+    {
+      title: "Welcome to Your Dashboard",
+      description: "This is your central hub for managing timetables. Here you can see an overview of your subjects, scheduled classes, and quick access to all features.",
+      icon: <LayoutGrid className="w-6 h-6 text-primary" />
+    },
+    {
+      title: "Statistics Overview",
+      description: "View key statistics at a glance: available subjects, scheduled classes, number of teachers, and saved schedules.",
+      icon: <BarChart3 className="w-6 h-6 text-primary" />
+    },
+    {
+      title: "Quick Actions",
+      description: "Use the Quick Actions section to navigate to the Timetable builder or view your Saved Schedules with a single click.",
+      icon: <ArrowRight className="w-6 h-6 text-primary" />
+    },
+    {
+      title: "Recent Schedules",
+      description: "Your most recently saved schedules appear here for quick access. Click on any schedule to view its details.",
+      icon: <FolderOpen className="w-6 h-6 text-primary" />
+    },
+    {
+      title: "Account Settings",
+      description: "Click the settings icon in the top-right corner to access account settings, change your password, or log out.",
+      icon: <Settings className="w-6 h-6 text-primary" />
+    }
+  ];
   return <div className="min-h-screen bg-background">
       {/* Animated Background */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
@@ -106,6 +136,11 @@ const Dashboard = () => {
             </div>
             
             <div className="flex items-center gap-3">
+              <Tutorial 
+                steps={dashboardTutorialSteps} 
+                storageKey="dashboard-tutorial-seen" 
+                title="Dashboard Tutorial" 
+              />
               <ThemeToggle />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
