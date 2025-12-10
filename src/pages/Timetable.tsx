@@ -60,6 +60,12 @@ const Timetable = () => {
     room: string;
     slotIndex: number;
   } | null>(null);
+  const [durationChangeDialogOpen, setDurationChangeDialogOpen] = useState(false);
+  const [pendingDurationChange, setPendingDurationChange] = useState<{
+    newDuration: number;
+    oldDuration: number;
+    originalDuration: number;
+  } | null>(null);
 
   // Check authentication and load user ID
   useEffect(() => {
@@ -763,7 +769,7 @@ const Timetable = () => {
       setIsEditTileOpen(true);
     }
   };
-  const handleSaveEditTile = async () => {
+  const handleSaveEditTile = async (forceAction?: 'split' | 'adjust') => {
     if (!editingTile) return;
     if (!editTileData.courseName.trim()) {
       toast.error("Course name is required");
@@ -797,8 +803,71 @@ const Timetable = () => {
       const newStartTime = `${String(startHour).padStart(2, '0')}:${String(startMin).padStart(2, '0')}`;
       const newEndTime = `${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}`;
       
-      // Update sidebar tile with new color based on async status
+      // Check if duration changed and ask for confirmation
+      const oldDuration = existingTile?.duration || editingTile.duration;
+      if (newDuration !== oldDuration && !forceAction) {
+        setPendingDurationChange({
+          newDuration,
+          oldDuration,
+          originalDuration: existingTile?.originalDuration || oldDuration
+        });
+        setDurationChangeDialogOpen(true);
+        return;
+      }
+      
+      // Determine color based on async status
       const tileColor = editTileData.isAsynchronous ? '#f59e0b' : '#10b981';
+
+      // Handle split for sidebar tiles
+      if (newDuration < oldDuration && forceAction === 'split') {
+        const remainingDuration = oldDuration - newDuration;
+        const remainingTile: CourseTile = {
+          id: `tile-${Date.now()}-remaining`,
+          courseName: editTileData.courseName.trim(),
+          section: editTileData.section.trim(),
+          teacher: editTileData.teacher.trim(),
+          startTime: newEndTime,
+          endTime: `${String(Math.floor((startMinutes + totalMinutes + remainingDuration * 30) / 60)).padStart(2, '0')}:${String((startMinutes + totalMinutes + remainingDuration * 30) % 60).padStart(2, '0')}`,
+          duration: remainingDuration,
+          color: tileColor,
+          splitFromId: editingTile.id,
+          subjectType: editTileData.subjectType,
+          labType: editTileData.labType,
+          isAsynchronous: editTileData.isAsynchronous
+        };
+
+        // Update existing tile and add remaining tile
+        const updatedTiles = availableTiles.map(t => 
+          t.id === editingTile.id 
+            ? {
+                ...t,
+                courseName: editTileData.courseName.trim(),
+                section: editTileData.section.trim(),
+                teacher: editTileData.teacher.trim(),
+                startTime: newStartTime,
+                endTime: newEndTime,
+                duration: newDuration,
+                color: tileColor,
+                subjectType: editTileData.subjectType,
+                labType: editTileData.labType,
+                isAsynchronous: editTileData.isAsynchronous
+              }
+            : t
+        );
+        setAvailableTiles([...updatedTiles, remainingTile]);
+        
+        if (userId) {
+          await saveUserTiles(userId, [...updatedTiles, remainingTile]);
+        }
+        
+        setIsEditTileOpen(false);
+        setEditingTile(null);
+        setPendingDurationChange(null);
+        toast.success(`Tile split! Remaining ${remainingDuration * 30} minutes created as new tile`);
+        return;
+      }
+
+      // Update sidebar tile with new color based on async status (for adjust action or no change)
       const updatedTiles = availableTiles.map(t => 
         t.id === editingTile.id 
           ? {
@@ -825,6 +894,7 @@ const Timetable = () => {
       
       setIsEditTileOpen(false);
       setEditingTile(null);
+      setPendingDurationChange(null);
       toast.success("Tile updated successfully");
       return;
     }
@@ -832,8 +902,19 @@ const Timetable = () => {
     const oldDuration = editingTile.duration;
     const originalDuration = editingTile.originalDuration || oldDuration;
 
-    // Check if duration was reduced
-    if (newDuration < oldDuration) {
+    // Check if duration changed and ask for confirmation (only for placed tiles)
+    if (newDuration !== oldDuration && !forceAction) {
+      setPendingDurationChange({
+        newDuration,
+        oldDuration,
+        originalDuration
+      });
+      setDurationChangeDialogOpen(true);
+      return;
+    }
+
+    // Check if duration was reduced and user chose to split
+    if (newDuration < oldDuration && forceAction === 'split') {
       // Calculate remaining time
       const remainingDuration = oldDuration - newDuration;
       const usedMinutes = newDuration * 30;
@@ -918,8 +999,11 @@ const Timetable = () => {
     } : t));
     setIsEditTileOpen(false);
     setEditingTile(null);
+    setPendingDurationChange(null);
     if (newDuration >= oldDuration && newDuration < originalDuration) {
       toast.success("Tile updated successfully");
+    } else if (forceAction === 'adjust' && newDuration !== oldDuration) {
+      toast.success("Tile duration adjusted");
     }
   };
 
@@ -1140,7 +1224,7 @@ const Timetable = () => {
                 Asynchronous Class
               </label>
             </div>
-            <Button onClick={handleSaveEditTile} className="w-full">
+            <Button onClick={() => handleSaveEditTile()} className="w-full">
               Save Changes
             </Button>
           </div>
@@ -1181,6 +1265,72 @@ const Timetable = () => {
                 </Button>
                 <Button onClick={handleMergeConfirm}>
                   Yes - Merge Tiles
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Duration Change Confirmation Dialog */}
+      <Dialog open={durationChangeDialogOpen} onOpenChange={setDurationChangeDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Duration Changed</DialogTitle>
+            <DialogDescription>
+              You've changed the duration of this tile. How would you like to apply this change?
+            </DialogDescription>
+          </DialogHeader>
+          {pendingDurationChange && (
+            <div className="space-y-4">
+              <div className="p-3 bg-muted rounded-lg space-y-2">
+                <p className="text-sm">
+                  <span className="text-muted-foreground">Current Duration:</span>{' '}
+                  <span className="font-medium">{pendingDurationChange.oldDuration * 30} minutes</span>
+                </p>
+                <p className="text-sm">
+                  <span className="text-muted-foreground">New Duration:</span>{' '}
+                  <span className="font-medium">{pendingDurationChange.newDuration * 30} minutes</span>
+                </p>
+                {pendingDurationChange.newDuration < pendingDurationChange.oldDuration && (
+                  <p className="text-sm text-primary">
+                    Remaining: {(pendingDurationChange.oldDuration - pendingDurationChange.newDuration) * 30} minutes
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                {pendingDurationChange.newDuration < pendingDurationChange.oldDuration && (
+                  <Button 
+                    onClick={() => {
+                      setDurationChangeDialogOpen(false);
+                      handleSaveEditTile('split');
+                    }}
+                    className="w-full"
+                  >
+                    Split Tile (Create new tile with remaining time)
+                  </Button>
+                )}
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    setDurationChangeDialogOpen(false);
+                    handleSaveEditTile('adjust');
+                  }}
+                  className="w-full"
+                >
+                  {pendingDurationChange.newDuration < pendingDurationChange.oldDuration 
+                    ? 'Just Adjust (No split)'
+                    : 'Adjust Duration'}
+                </Button>
+                <Button 
+                  variant="ghost"
+                  onClick={() => {
+                    setDurationChangeDialogOpen(false);
+                    setPendingDurationChange(null);
+                  }}
+                  className="w-full"
+                >
+                  Cancel
                 </Button>
               </div>
             </div>
