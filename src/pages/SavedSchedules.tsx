@@ -38,6 +38,7 @@ import {
 const getFullCourseName = (sectionName: string): string => {
   const courseMap: Record<string, string> = {
     'BSIT': 'Bachelor of Science in Information Technology',
+    'IT': 'Bachelor of Science in Information Technology',
     'ACT': 'Associate in Computer Technology',
     'CS': 'Bachelor of Science in Computer Science',
     'HM': 'Bachelor of Science in Hospitality Management',
