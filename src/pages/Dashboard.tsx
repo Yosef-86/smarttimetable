@@ -4,29 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
-import { 
-  Calendar, 
-  Clock, 
-  Users, 
-  BookOpen, 
-  LayoutGrid,
-  Plus,
-  FileText,
-  LogOut,
-  Settings
-} from "lucide-react";
+import { Calendar, Clock, Users, BookOpen, LayoutGrid, Plus, FileText, LogOut, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { loadUserTiles, loadPlacedTiles, loadSavedSchedules, loadUserRooms } from "@/utils/databaseHelpers";
 import { CourseTile, PlacedTile, SavedSchedule } from "@/types/schedule";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AccountSettings } from "@/components/AccountSettings";
-
 const Dashboard = () => {
   const navigate = useNavigate();
   const [userId, setUserId] = useState<string>("");
   const [userEmail, setUserEmail] = useState<string>("");
   const [showAccountSettings, setShowAccountSettings] = useState(false);
-  
   const [availableTiles, setAvailableTiles] = useState<CourseTile[]>([]);
   const [placedTiles, setPlacedTiles] = useState<PlacedTile[]>([]);
   const [savedSchedules, setSavedSchedules] = useState<SavedSchedule[]>([]);
@@ -35,7 +23,11 @@ const Dashboard = () => {
 
   // Check authentication
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({
+      data: {
+        session
+      }
+    }) => {
       if (!session) {
         navigate("/auth");
       } else {
@@ -43,8 +35,11 @@ const Dashboard = () => {
         setUserEmail(session.user.email || "");
       }
     });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const {
+      data: {
+        subscription
+      }
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session) {
         navigate("/auth");
       } else {
@@ -52,24 +47,16 @@ const Dashboard = () => {
         setUserEmail(session.user.email || "");
       }
     });
-
     return () => subscription.unsubscribe();
   }, [navigate]);
 
   // Load dashboard data
   useEffect(() => {
     if (!userId) return;
-
     const loadDashboardData = async () => {
       setLoading(true);
       try {
-        const [tilesData, placedData, schedulesData, roomsData] = await Promise.all([
-          loadUserTiles(userId),
-          loadPlacedTiles(userId),
-          loadSavedSchedules(userId),
-          loadUserRooms(userId)
-        ]);
-
+        const [tilesData, placedData, schedulesData, roomsData] = await Promise.all([loadUserTiles(userId), loadPlacedTiles(userId), loadSavedSchedules(userId), loadUserRooms(userId)]);
         setAvailableTiles(tilesData);
         setPlacedTiles(placedData);
         setSavedSchedules(schedulesData);
@@ -80,10 +67,8 @@ const Dashboard = () => {
         setLoading(false);
       }
     };
-
     loadDashboardData();
   }, [userId]);
-
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
@@ -98,10 +83,8 @@ const Dashboard = () => {
   const totalTeachers = new Set(availableTiles.map(t => t.teacher)).size;
   const totalSections = new Set(availableTiles.map(t => t.section)).size;
   const scheduledClasses = placedTiles.length;
-  const totalHours = placedTiles.reduce((sum, tile) => sum + (tile.duration * 0.5), 0);
-
-  return (
-    <div className="min-h-screen bg-background">
+  const totalHours = placedTiles.reduce((sum, tile) => sum + tile.duration * 0.5, 0);
+  return <div className="min-h-screen bg-background">
       {/* Animated Background */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 -left-20 w-96 h-96 bg-primary/5 rounded-full blur-3xl animate-pulse" />
@@ -149,21 +132,18 @@ const Dashboard = () => {
       </header>
 
       <main className="container mx-auto px-6 py-8">
-        {loading ? (
-          <div className="flex items-center justify-center min-h-[400px]">
+        {loading ? <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
               <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
               <p className="text-muted-foreground">Loading your dashboard...</p>
             </div>
-          </div>
-        ) : (
-          <div className="space-y-8">
+          </div> : <div className="space-y-8">
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card className="group hover:shadow-lg transition-all duration-300 border-l-4 border-l-primary">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Available Courses</CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Available Subjects</CardTitle>
                     <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
                       <BookOpen className="w-5 h-5 text-primary" />
                     </div>
@@ -229,11 +209,7 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Button 
-                    onClick={() => navigate("/timetable")} 
-                    className="h-auto py-6 justify-start gap-4 hover:scale-105 transition-transform"
-                    variant="outline"
-                  >
+                  <Button onClick={() => navigate("/timetable")} className="h-auto py-6 justify-start gap-4 hover:scale-105 transition-transform" variant="outline">
                     <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
                       <Calendar className="w-6 h-6 text-primary" />
                     </div>
@@ -243,11 +219,7 @@ const Dashboard = () => {
                     </div>
                   </Button>
 
-                  <Button 
-                    onClick={() => navigate("/saved-schedules")} 
-                    className="h-auto py-6 justify-start gap-4 hover:scale-105 transition-transform"
-                    variant="outline"
-                  >
+                  <Button onClick={() => navigate("/saved-schedules")} className="h-auto py-6 justify-start gap-4 hover:scale-105 transition-transform" variant="outline">
                     <div className="w-12 h-12 rounded-lg bg-secondary/10 flex items-center justify-center flex-shrink-0">
                       <FileText className="w-6 h-6 text-secondary" />
                     </div>
@@ -267,8 +239,7 @@ const Dashboard = () => {
                 <CardDescription>Your latest saved timetables</CardDescription>
               </CardHeader>
               <CardContent>
-                {savedSchedules.length === 0 ? (
-                  <div className="text-center py-12">
+                {savedSchedules.length === 0 ? <div className="text-center py-12">
                     <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
                       <FileText className="w-8 h-8 text-muted-foreground" />
                     </div>
@@ -277,15 +248,8 @@ const Dashboard = () => {
                       <Plus className="w-4 h-4 mr-2" />
                       Create Your First Schedule
                     </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {savedSchedules.slice(0, 5).map((schedule) => (
-                      <div
-                        key={schedule.id}
-                        className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-accent/5 hover:border-accent/50 transition-all cursor-pointer group"
-                        onClick={() => navigate("/saved-schedules")}
-                      >
+                  </div> : <div className="space-y-3">
+                    {savedSchedules.slice(0, 5).map(schedule => <div key={schedule.id} className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-accent/5 hover:border-accent/50 transition-all cursor-pointer group" onClick={() => navigate("/saved-schedules")}>
                         <div className="flex items-center gap-4">
                           <div className="w-10 h-10 rounded-lg bg-gradient-primary flex items-center justify-center flex-shrink-0">
                             <FileText className="w-5 h-5 text-primary-foreground" />
@@ -302,25 +266,14 @@ const Dashboard = () => {
                         <div className="text-muted-foreground group-hover:text-foreground transition-colors">
                           <Clock className="w-5 h-5" />
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      </div>)}
+                  </div>}
               </CardContent>
             </Card>
-          </div>
-        )}
+          </div>}
       </main>
 
-      {showAccountSettings && (
-        <AccountSettings
-          open={showAccountSettings}
-          onOpenChange={setShowAccountSettings}
-          userEmail={userEmail}
-        />
-      )}
-    </div>
-  );
+      {showAccountSettings && <AccountSettings open={showAccountSettings} onOpenChange={setShowAccountSettings} userEmail={userEmail} />}
+    </div>;
 };
-
 export default Dashboard;
