@@ -461,17 +461,17 @@ const SavedSchedules = () => {
                                 backgroundColor: tile.color 
                               }}
                             >
-                              <div className="p-2 w-full print:p-[2px] print:flex print:flex-col print:justify-start print:h-full print:bg-white print:overflow-hidden">
-                                <div className="text-white font-semibold text-xs print:text-black print:text-[6.5px] print:font-bold print:leading-tight print:mb-0">
+                              <div className="p-2 w-full print:p-[3px] print:flex print:flex-col print:justify-start print:h-full print:bg-white print:overflow-hidden">
+                                <div className="text-white font-semibold text-xs print:text-black print:text-[8px] print:font-bold print:leading-tight print:mb-0">
                                   {tile.courseName}
                                 </div>
-                                <div className="text-white/90 text-xs print:text-black print:text-[6px] print:font-semibold print:leading-tight print:mb-0">
+                                <div className="text-white/90 text-xs print:text-black print:text-[7px] print:font-semibold print:leading-tight print:mb-0">
                                   {tile.section}
                                 </div>
-                                <div className="text-white/80 text-xs print:text-black print:text-[6px] print:leading-tight print:mb-0">
+                                <div className="text-white/80 text-xs print:text-black print:text-[7px] print:leading-tight print:mb-0">
                                   {tile.teacher}
                                 </div>
-                                <div className="text-white/70 text-[10px] mt-1 print:text-black print:text-[5.5px] print:mt-0 print:leading-tight">
+                                <div className="text-white/70 text-[10px] mt-1 print:text-black print:text-[6.5px] print:mt-0 print:leading-tight">
                                   {actualStartTime} - {actualEndTime}
                                 </div>
                               </div>
