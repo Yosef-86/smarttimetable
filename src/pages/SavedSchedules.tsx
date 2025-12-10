@@ -34,6 +34,23 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+// Helper function to get full course name from section abbreviation
+const getFullCourseName = (sectionName: string): string => {
+  const courseMap: Record<string, string> = {
+    'BSIT': 'Bachelor of Science in Information Technology',
+    'ACT': 'Associate in Computer Technology',
+    'CS': 'Bachelor of Science in Computer Science',
+    'HM': 'Bachelor of Science in Hospitality Management',
+    'BSHM': 'Bachelor of Science in Hospitality Management',
+    'BSCS': 'Bachelor of Science in Computer Science',
+  };
+  
+  // Extract course prefix from section name (e.g., "BSIT" from "BSIT-101")
+  const prefix = sectionName.split('-')[0]?.toUpperCase() || '';
+  
+  return courseMap[prefix] || sectionName;
+};
+
 const SavedSchedules = () => {
   const navigate = useNavigate();
   const [userId, setUserId] = useState<string>("");
@@ -512,17 +529,30 @@ const SavedSchedules = () => {
                 </Button>
               </div>
             </div>
-          </div>
+        </div>
         </div>
 
         {/* Print Header - Only visible when printing */}
         <div className="hidden print:block print:mb-4 print:text-center">
-          <h1 className="text-xl font-bold text-black">
-            {viewingSchedule.type === 'teacher' && `Teacher Schedule: ${viewingSchedule.name}`}
-            {viewingSchedule.type === 'section' && `Section Schedule: ${viewingSchedule.name}`}
-            {viewingSchedule.type === 'room' && `Room Schedule: ${viewingSchedule.name}`}
-          </h1>
-          <p className="text-sm text-gray-600">
+          {viewingSchedule.type === 'teacher' && (
+            <>
+              <h1 className="text-xl font-bold text-black">Teacher Schedule</h1>
+              <p className="text-base font-semibold text-gray-800">{viewingSchedule.name}</p>
+            </>
+          )}
+          {viewingSchedule.type === 'section' && (
+            <>
+              <h1 className="text-xl font-bold text-black">{getFullCourseName(viewingSchedule.name)}</h1>
+              <p className="text-base font-semibold text-gray-800">Section: {viewingSchedule.name}</p>
+            </>
+          )}
+          {viewingSchedule.type === 'room' && (
+            <>
+              <h1 className="text-xl font-bold text-black">Room Schedule</h1>
+              <p className="text-base font-semibold text-gray-800">{viewingSchedule.name}</p>
+            </>
+          )}
+          <p className="text-sm text-gray-600 mt-1">
             Created: {new Date(viewingSchedule.createdAt).toLocaleDateString('en-US', { 
               year: 'numeric', 
               month: 'long', 
